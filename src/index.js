@@ -8,6 +8,8 @@ const STAFF_ROLE_ID = '1567191306977943712';
 
 const STAFF_ROLE_ID = '1567191306977943712';
 
+const STAFF_ROLE_ID = '1567191306977943712';
+
 if (!DISCORD_TOKEN) {
   console.error('Configure DISCORD_TOKEN no ambiente antes de iniciar o bot.');
   process.exit(1);
