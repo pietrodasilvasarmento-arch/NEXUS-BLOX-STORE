@@ -12,11 +12,13 @@ const {
 } = require('discord.js');
 
 const {
+  const {
   DISCORD_TOKEN,
-  STAFF_ROLE_ID,
   TICKET_CATEGORY_ID,
   LOG_CHANNEL_ID,
 } = process.env;
+
+const STAFF_ROLE_ID = '1567191306977943712';
 
 if (!DISCORD_TOKEN) {
   console.error('Configure DISCORD_TOKEN no ambiente antes de iniciar o bot.');
