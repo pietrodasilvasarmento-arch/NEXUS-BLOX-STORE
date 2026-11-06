@@ -1,5 +1,4 @@
 
-
 require('dotenv').config();
 
 const fs = require('node:fs');
@@ -501,3 +500,5 @@ if (!DISCORD_TOKEN) {
 }
 
 client.login(DISCORD_TOKEN);
+
+
