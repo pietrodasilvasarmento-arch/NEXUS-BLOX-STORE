@@ -193,8 +193,36 @@ async function closeTicket(interaction) {
   }, 5000);
 }
 
-client.once(Events.ClientReady, (readyClient) => {
+client.once(Events.ClientReady, async (readyClient) => {
   console.log(`Nexus Blox Store conectado como ${readyClient.user.tag}.`);
+
+  const { REST, Routes, SlashCommandBuilder } = require('discord.js');
+  const { CLIENT_ID, GUILD_ID } = process.env;
+
+  if (!CLIENT_ID || !GUILD_ID) {
+    console.error('Falta CLIENT_ID ou GUILD_ID.');
+    return;
+  }
+
+  const commands = [
+    new SlashCommandBuilder()
+      .setName('painel')
+      .setDescription('Publica o painel de atendimento da Nexus Blox Store.')
+      .setDMPermission(false)
+      .toJSON(),
+  ];
+
+  const rest = new REST({ version: '10' }).setToken(DISCORD_TOKEN);
+
+  try {
+    await rest.put(
+      Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID),
+      { body: commands }
+    );
+    console.log('Comando /painel registrado com sucesso!');
+  } catch (error) {
+    console.error('Erro ao registrar /painel:', error);
+  }
 });
 
 client.on(Events.InteractionCreate, async (interaction) => {
