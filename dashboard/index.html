@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nexus Blox Store</title>
+<style>
+body{margin:0;background:#100b19;color:white;font-family:Arial;padding:20px}
+main{max-width:600px;margin:auto}
+h1{color:#bd83ff}
+.card{background:#21172e;padding:18px;border-radius:15px;margin:15px 0}
+label{display:block;margin-top:15px}
+input,textarea{box-sizing:border-box;width:100%;padding:12px;margin-top:7px;border:0;border-radius:8px}
+button{background:#9b52e8;color:white;border:0;padding:13px;border-radius:9px;margin-top:18px;width:100%;font-weight:bold}
+#preview{border:1px solid #9b52e8;padding:15px;border-radius:12px;margin-top:15px}
+#preview img{max-width:100%;border-radius:10px}
+</style>
+</head>
+<body>
+<main>
+<h1>💜 Nexus Blox Store</h1>
+<p>Painel de gerenciamento do bot</p>
+<div class="card">
+<h2>Personalizar painel</h2>
+<label>Título</label>
+<input id="titulo" value="💜 Nexus Blox Store | Middleman">
+<label>Descrição</label>
+<textarea id="descricao" rows="4">Escolha uma opção abaixo para começar sua negociação!</textarea>
+<label>Imagem do painel</label>
+<input id="imagem" type="url" placeholder="Cole o link da imagem">
+<label>Cor do painel</label>
+<input id="cor" type="color" value="#9b52e8">
+<button onclick="atualizar()">Visualizar alterações</button>
+</div>
+<div id="preview">
+<h2 id="ptitulo">💜 Nexus Blox Store | Middleman</h2>
+<p id="pdescricao">Escolha uma opção abaixo para começar sua negociação!</p>
+<img id="pimagem" hidden>
+</div>
+<script>
+function atualizar(){
+document.getElementById('ptitulo').textContent=document.getElementById('titulo').value;
+document.getElementById('pdescricao').textContent=document.getElementById('descricao').value;
+let url=document.getElementById('imagem').value;
+let img=document.getElementById('pimagem');
+img.hidden=!url;
+if(url)img.src=url;
+document.getElementById('preview').style.borderColor=document.getElementById('cor').value;
+}
+</script>
+</main>
+</body>
+</html>
