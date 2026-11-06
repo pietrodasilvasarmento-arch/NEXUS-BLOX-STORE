@@ -1,22 +1,10 @@
-require('dotenv').config();
-
 const {
-  ActionRowBuilder,
-  ButtonBuilder,
-  ButtonStyle,
-  ChannelType,
-  Client,
-  EmbedBuilder,
-  Events,
-  PermissionFlagsBits,
-} = require('discord.js');
-
-const {
-  const {
   DISCORD_TOKEN,
   TICKET_CATEGORY_ID,
   LOG_CHANNEL_ID,
 } = process.env;
+
+const STAFF_ROLE_ID = '1567191306977943712';
 
 const STAFF_ROLE_ID = '1567191306977943712';
 
