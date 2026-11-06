@@ -197,7 +197,8 @@ client.once(Events.ClientReady, async (readyClient) => {
   console.log(`Nexus Blox Store conectado como ${readyClient.user.tag}.`);
 
   const { REST, Routes, SlashCommandBuilder } = require('discord.js');
-  const { CLIENT_ID, GUILD_ID } = process.env;
+  const CLIENT_ID = '1567710436038541352';
+const GUILD_ID = '1565709224393187388';
 
   if (!CLIENT_ID || !GUILD_ID) {
     console.error('Falta CLIENT_ID ou GUILD_ID.');
