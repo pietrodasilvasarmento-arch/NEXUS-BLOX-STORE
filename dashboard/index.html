@@ -8,93 +8,32 @@
 
 <style>
 *{box-sizing:border-box}
-
-body{
-  margin:0;
-  background:#100b19;
-  color:white;
-  font-family:Arial,sans-serif
-}
-
-header{
-  background:#21152e;
-  padding:22px;
-  border-bottom:1px solid #693c91
-}
-
-h1{color:#c18aff;margin:0}
+body{margin:0;background:#100b19;color:white;font-family:Arial,sans-serif}
+header{background:#21152e;padding:22px;border-bottom:1px solid #693c91}
+h1,h2{color:#c18aff}
 main{max-width:850px;margin:25px auto;padding:15px}
-
-.card{
-  background:#21172e;
-  padding:20px;
-  border-radius:14px;
-  margin:18px 0
-}
-
-h2{color:#c18aff}
-
+.card{background:#21172e;padding:20px;border-radius:14px;margin:18px 0}
 label{display:block;margin-top:16px}
-
-input,textarea,select{
-  width:100%;
-  padding:12px;
-  margin-top:7px;
-  border:0;
-  border-radius:8px;
-  background:#352642;
-  color:white
-}
-
-button{
-  background:#9b52e8;
-  color:white;
-  border:0;
-  padding:13px;
-  border-radius:9px;
-  margin-top:15px;
-  font-weight:bold;
-  cursor:pointer
-}
-
+input,textarea,select{width:100%;padding:12px;margin-top:7px;border:0;border-radius:8px;background:#352642;color:white}
+button{background:#9b52e8;color:white;border:0;padding:13px;border-radius:9px;margin-top:15px;font-weight:bold;cursor:pointer}
 button:hover{background:#b77aff}
-
-#preview{
-  border:1px solid #9b52e8;
-  padding:18px;
-  border-radius:12px;
-  margin-top:15px
-}
-
-#preview img{
-  max-width:100%;
-  border-radius:10px
-}
-
-.small{
-  color:#bca9ca;
-  font-size:13px
-}
-
-.status{
-  margin-top:12px;
-  color:#c18aff;
-  font-size:14px
-}
+#preview{border:1px solid #9b52e8;padding:18px;border-radius:12px;margin-top:15px}
+#preview img{max-width:100%;border-radius:10px}
+.small{color:#bca9ca;font-size:13px}
+.status{margin-top:12px;color:#c18aff;font-size:14px}
+.categoria{background:#352642;padding:14px;border-radius:10px;margin-top:12px}
+.categoria strong{display:block;margin-bottom:8px}
 </style>
 </head>
 
 <body>
-
 <header>
 <h1>💜 NEXUS BLOX STORE</h1>
 <p>Painel de gerenciamento</p>
 </header>
 
 <main>
-
 <div class="card">
-
 <h2>🎛️ Gerenciar painéis</h2>
 
 <label>Escolher painel</label>
@@ -103,6 +42,8 @@ button:hover{background:#b77aff}
 <option value="Comprar">Comprar</option>
 <option value="Vender">Vender</option>
 <option value="Troca">Troca</option>
+<option value="Suporte Geral">Suporte Geral</option>
+<option value="Denúncia">Denúncia</option>
 </select>
 
 <label>Título do painel</label>
@@ -117,218 +58,226 @@ button:hover{background:#b77aff}
 <label>Cor do painel</label>
 <input id="cor" type="color" value="#7b2cbf">
 
+<h2>🎫 Categorias de atendimento</h2>
+<p class="small">Edite os nomes e emojis das categorias. As cores são definidas automaticamente.</p>
+
+<div id="categorias"></div>
+
 <button onclick="atualizar()">👁️ Visualizar alterações</button>
-
 <button onclick="salvar()">💾 Salvar configuração</button>
-
 <button onclick="sair()">🔒 Sair do Dashboard</button>
 
 <p id="status" class="status"></p>
-
 </div>
 
 <div class="card">
-
 <h2>👁️ Pré-visualização</h2>
-
 <div id="preview">
-
 <h2 id="ptitulo">NEXUS BLOX STORE | Middleman</h2>
-
 <p id="pdescricao">Escolha uma opção abaixo para começar sua negociação!</p>
-
 <img id="pimagem" hidden>
-
 </div>
-
 </div>
 
 <p class="small">NEXUS BLOX STORE • Dashboard</p>
-
 </main>
 
 <script>
+const padrao = [
+ {id:'troca',label:'Troca',emoji:'🔄',style:'secondary'},
+ {id:'comprar',label:'Comprar',emoji:'',style:'success'},
+ {id:'vender',label:'Vender',emoji:'💰',style:'secondary'},
+ {id:'suporte-geral',label:'Suporte Geral',emoji:'💬',style:'primary'},
+ {id:'denuncia',label:'Denúncia',emoji:'🆘',style:'danger'}
+];
 
-function obterSenha() {
-  return sessionStorage.getItem('nexus_dashboard_auth');
+let botoes = padrao.map(item => ({...item}));
+
+function obterSenha(){
+ return sessionStorage.getItem('nexus_dashboard_auth');
 }
 
-function pedirSenha() {
-  const senha = prompt('Digite a senha do Dashboard Nexus:');
-
-  if (senha === null) {
-    throw new Error('Acesso cancelado.');
-  }
-
-  if (!senha) {
-    throw new Error('Digite uma senha.');
-  }
-
-  const token = btoa('nexus:' + senha);
-
-  sessionStorage.setItem('nexus_dashboard_auth', token);
-
-  return token;
+function pedirSenha(){
+ const senha = prompt('Digite a senha do Dashboard Nexus:');
+ if(senha === null) throw new Error('Acesso cancelado.');
+ if(!senha) throw new Error('Digite uma senha.');
+ const token = btoa('nexus:' + senha);
+ sessionStorage.setItem('nexus_dashboard_auth',token);
+ return token;
 }
 
-async function requisicaoProtegida(url, options = {}) {
+async function requisicaoProtegida(url,options={}){
+ let token = obterSenha();
+ if(!token) token = pedirSenha();
 
-  let token = obterSenha();
+ const executar = auth => fetch(url,{
+  ...options,
+  headers:{
+   ...options.headers,
+   Authorization:'Basic ' + auth
+  }
+ });
 
-  if (!token) {
-    token = pedirSenha();
+ let resposta = await executar(token);
+
+ if(resposta.status === 401){
+  sessionStorage.removeItem('nexus_dashboard_auth');
+  token = pedirSenha();
+  resposta = await executar(token);
+ }
+
+ if(resposta.status === 401){
+  sessionStorage.removeItem('nexus_dashboard_auth');
+  throw new Error('Senha incorreta.');
+ }
+
+ if(!resposta.ok) throw new Error('Erro HTTP: ' + resposta.status);
+ return resposta;
+}
+
+function mostrarCategorias(){
+ const area = document.getElementById('categorias');
+ area.innerHTML = '';
+
+ botoes.forEach((item,index)=>{
+  const div = document.createElement('div');
+  div.className = 'categoria';
+
+  const nome = document.createElement('strong');
+  nome.textContent = item.emoji + ' ' + item.label;
+  div.appendChild(nome);
+
+  const labelNome = document.createElement('label');
+  labelNome.textContent = 'Nome da categoria';
+  const inputNome = document.createElement('input');
+  inputNome.value = item.label;
+  inputNome.maxLength = 80;
+  inputNome.addEventListener('input',()=>{
+   botoes[index].label = inputNome.value;
+   nome.textContent = botoes[index].emoji + ' ' + inputNome.value;
+  });
+  div.appendChild(labelNome);
+  div.appendChild(inputNome);
+
+  const labelEmoji = document.createElement('label');
+  labelEmoji.textContent = 'Emoji';
+  const inputEmoji = document.createElement('input');
+  inputEmoji.value = item.emoji;
+  inputEmoji.maxLength = 32;
+  inputEmoji.addEventListener('input',()=>{
+   botoes[index].emoji = inputEmoji.value;
+   nome.textContent = inputEmoji.value + ' ' + botoes[index].label;
+  });
+  div.appendChild(labelEmoji);
+  div.appendChild(inputEmoji);
+
+  const cor = document.createElement('p');
+  const cores = {
+   success:'🟢 Verde',
+   primary:'🔵 Azul',
+   danger:'🔴 Vermelho',
+   secondary:'⚪ Cinza'
+  };
+  cor.textContent = 'Cor do botão: ' + cores[item.style];
+  div.appendChild(cor);
+
+  area.appendChild(div);
+ });
+}
+
+function atualizar(){
+ document.getElementById('ptitulo').textContent =
+  document.getElementById('titulo').value;
+
+ document.getElementById('pdescricao').textContent =
+  document.getElementById('descricao').value;
+
+ const url = document.getElementById('imagem').value;
+ const img = document.getElementById('pimagem');
+ img.hidden = !url;
+ if(url) img.src = url;
+
+ document.getElementById('preview').style.borderColor =
+  document.getElementById('cor').value;
+}
+
+async function carregar(){
+ const status = document.getElementById('status');
+
+ try{
+  status.textContent = 'Carregando configurações...';
+  const resposta = await requisicaoProtegida('/api/config');
+  const dados = await resposta.json();
+
+  document.getElementById('titulo').value = dados.title || '';
+  document.getElementById('descricao').value = dados.description || '';
+  document.getElementById('imagem').value = dados.image || '';
+  document.getElementById('cor').value = '#' + (dados.color || '7B2CBF');
+
+  if(Array.isArray(dados.buttons)){
+   botoes = padrao.map(def=>{
+    const salvo = dados.buttons.find(b=>b.id===def.id);
+    return {...def,...(salvo || {})};
+   });
   }
 
-  const executar = (auth) => fetch(url, {
-    ...options,
-    headers: {
-      ...options.headers,
-      Authorization: 'Basic ' + auth
-    }
+  mostrarCategorias();
+  atualizar();
+  status.textContent = '💜 Configurações carregadas!';
+
+ }catch(erro){
+  status.textContent = erro.message;
+  if(erro.message !== 'Acesso cancelado.'){
+   alert('Não foi possível carregar: ' + erro.message);
+  }
+ }
+}
+
+async function salvar(){
+ const status = document.getElementById('status');
+
+ const dados = {
+  title:document.getElementById('titulo').value,
+  description:document.getElementById('descricao').value,
+  image:document.getElementById('imagem').value,
+  color:document.getElementById('cor').value.replace('#',''),
+  buttons:botoes
+ };
+
+ try{
+  status.textContent = 'Salvando configurações...';
+
+  const resposta = await requisicaoProtegida('/api/config',{
+   method:'POST',
+   headers:{'Content-Type':'application/json'},
+   body:JSON.stringify(dados)
   });
 
-  let resposta = await executar(token);
+  const resultado = await resposta.json();
+  atualizar();
 
-  if (resposta.status === 401) {
-
-    sessionStorage.removeItem('nexus_dashboard_auth');
-
-    token = pedirSenha();
-
-    resposta = await executar(token);
+  if(resultado.panelUpdated){
+   status.textContent = '✅ Painel atualizado no Discord!';
+   alert('💜 Configuração salva e painel atualizado no Discord!');
+  }else{
+   status.textContent = '✅ Configuração salva!';
+   alert('Configuração salva! Use /painel no Discord para publicar.');
   }
 
-  if (resposta.status === 401) {
-    sessionStorage.removeItem('nexus_dashboard_auth');
-    throw new Error('Senha incorreta.');
-  }
-
-  if (!resposta.ok) {
-    throw new Error('Erro HTTP: ' + resposta.status);
-  }
-
-  return resposta;
+ }catch(erro){
+  status.textContent = erro.message;
+  alert('Não foi possível salvar: ' + erro.message);
+ }
 }
 
-function atualizar() {
-
-  document.getElementById('ptitulo').textContent =
-    document.getElementById('titulo').value;
-
-  document.getElementById('pdescricao').textContent =
-    document.getElementById('descricao').value;
-
-  const url = document.getElementById('imagem').value;
-  const img = document.getElementById('pimagem');
-
-  img.hidden = !url;
-
-  if (url) {
-    img.src = url;
-  }
-
-  document.getElementById('preview').style.borderColor =
-    document.getElementById('cor').value;
+function sair(){
+ sessionStorage.removeItem('nexus_dashboard_auth');
+ alert('Você saiu do Dashboard. Atualize a página para entrar novamente.');
+ location.reload();
 }
 
-async function carregar() {
-
-  const status = document.getElementById('status');
-
-  try {
-
-    status.textContent = 'Carregando configurações...';
-
-    const resposta = await requisicaoProtegida('/api/config');
-
-    const dados = await resposta.json();
-
-    document.getElementById('titulo').value =
-      dados.title || '';
-
-    document.getElementById('descricao').value =
-      dados.description || '';
-
-    document.getElementById('imagem').value =
-      dados.image || '';
-
-    document.getElementById('cor').value =
-      '#' + (dados.color || '7B2CBF');
-
-    atualizar();
-
-    status.textContent = '💜 Configurações carregadas!';
-
-  } catch (erro) {
-
-    status.textContent = erro.message;
-
-    if (erro.message !== 'Acesso cancelado.') {
-      alert('Não foi possível carregar: ' + erro.message);
-    }
-  }
-}
-
-async function salvar() {
-
-  const status = document.getElementById('status');
-
-  const dados = {
-    title: document.getElementById('titulo').value,
-    description: document.getElementById('descricao').value,
-    image: document.getElementById('imagem').value,
-    color: document.getElementById('cor').value.replace('#', '')
-  };
-
-  try {
-
-    status.textContent = 'Salvando configurações...';
-
-    const resposta = await requisicaoProtegida('/api/config', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(dados)
-    });
-
-    const resultado = await resposta.json();
-
-    atualizar();
-
-    if (resultado.panelUpdated) {
-
-      status.textContent = '✅ Painel atualizado no Discord!';
-
-      alert('💜 Configuração salva e painel atualizado no Discord!');
-
-    } else {
-
-      status.textContent = '✅ Configuração salva!';
-
-      alert('Configuração salva! Use /painel no Discord para publicar.');
-    }
-
-  } catch (erro) {
-
-    status.textContent = erro.message;
-
-    alert('Não foi possível salvar: ' + erro.message);
-  }
-}
-
-function sair() {
-
-  sessionStorage.removeItem('nexus_dashboard_auth');
-
-  alert('Você saiu do Dashboard. Atualize a página para entrar novamente.');
-
-  location.reload();
-}
-
+mostrarCategorias();
 carregar();
-
 </script>
-
 </body>
 </html>
