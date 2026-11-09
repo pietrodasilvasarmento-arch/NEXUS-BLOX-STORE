@@ -3,40 +3,62 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Nexus Blox Store</title>
+<title>NEXUS BLOX STORE</title>
 <style>
-body{margin:0;background:#100b19;color:white;font-family:Arial;padding:20px}
-main{max-width:600px;margin:auto}
-h1{color:#bd83ff}
-.card{background:#21172e;padding:18px;border-radius:15px;margin:15px 0}
-label{display:block;margin-top:15px}
-input,textarea{box-sizing:border-box;width:100%;padding:12px;margin-top:7px;border:0;border-radius:8px}
-button{background:#9b52e8;color:white;border:0;padding:13px;border-radius:9px;margin-top:18px;width:100%;font-weight:bold}
-#preview{border:1px solid #9b52e8;padding:15px;border-radius:12px;margin-top:15px}
+*{box-sizing:border-box}
+body{margin:0;background:#100b19;color:white;font-family:Arial,sans-serif}
+header{background:#21152e;padding:22px;border-bottom:1px solid #693c91}
+h1{color:#c18aff;margin:0}
+main{max-width:850px;margin:25px auto;padding:15px}
+.card{background:#21172e;padding:20px;border-radius:14px;margin:18px 0}
+h2{color:#c18aff}
+label{display:block;margin-top:16px}
+input,textarea,select{width:100%;padding:12px;margin-top:7px;border:0;border-radius:8px;background:#352642;color:white}
+button{background:#9b52e8;color:white;border:0;padding:13px;border-radius:9px;margin-top:15px;font-weight:bold;cursor:pointer}
+button:hover{background:#b77aff}
+#preview{border:1px solid #9b52e8;padding:18px;border-radius:12px;margin-top:15px}
 #preview img{max-width:100%;border-radius:10px}
+.small{color:#bca9ca;font-size:13px}
 </style>
 </head>
 <body>
+<header>
+<h1>💜 NEXUS BLOX STORE</h1>
+<p>Painel de gerenciamento</p>
+</header>
 <main>
-<h1>💜 Nexus Blox Store</h1>
-<p>Painel de gerenciamento do bot</p>
 <div class="card">
-<h2>Personalizar painel</h2>
-<label>Título</label>
-<input id="titulo" value="💜 Nexus Blox Store | Middleman">
+<h2>🎛️ Gerenciar painéis</h2>
+<label>Escolher painel</label>
+<select id="painel">
+<option value="Middleman">Middleman</option>
+<option value="Comprar">Comprar</option>
+<option value="Vender">Vender</option>
+<option value="Troca">Troca</option>
+</select>
+<label>Título do painel</label>
+<input id="titulo" value="NEXUS BLOX STORE | Middleman">
 <label>Descrição</label>
-<textarea id="descricao" rows="4">Escolha uma opção abaixo para começar sua negociação!</textarea>
-<label>Imagem do painel</label>
-<input id="imagem" type="url" placeholder="Cole o link da imagem">
+<textarea id="descricao" rows="3">Escolha uma opção abaixo para começar sua negociação!</textarea>
+<label>Link da imagem</label>
+<input id="imagem" placeholder="Cole o link da imagem aqui">
 <label>Cor do painel</label>
 <input id="cor" type="color" value="#9b52e8">
 <button onclick="atualizar()">Visualizar alterações</button>
+<button onclick="salvar()">Salvar configuração</button>
 </div>
+
+<div class="card">
+<h2>👁️ Pré-visualização</h2>
 <div id="preview">
-<h2 id="ptitulo">💜 Nexus Blox Store | Middleman</h2>
+<h2 id="ptitulo">NEXUS BLOX STORE | Middleman</h2>
 <p id="pdescricao">Escolha uma opção abaixo para começar sua negociação!</p>
 <img id="pimagem" hidden>
 </div>
+</div>
+<p class="small">NEXUS BLOX STORE • Dashboard</p>
+</main>
+
 <script>
 function atualizar(){
 document.getElementById('ptitulo').textContent=document.getElementById('titulo').value;
@@ -47,7 +69,16 @@ img.hidden=!url;
 if(url)img.src=url;
 document.getElementById('preview').style.borderColor=document.getElementById('cor').value;
 }
+function salvar(){
+let dados={
+titulo:document.getElementById('titulo').value,
+descricao:document.getElementById('descricao').value,
+imagem:document.getElementById('imagem').value,
+cor:document.getElementById('cor').value
+};
+localStorage.setItem('nexus-'+document.getElementById('painel').value,JSON.stringify(dados));
+alert('Configuração salva neste navegador!');
+}
 </script>
-</main>
 </body>
 </html>
