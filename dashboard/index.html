@@ -111,6 +111,30 @@ function showStatus(message, error=false) {
 async function api(url, options={}) {
   const response = await fetch(url, {
     ...options,
+    credentials: 'same-origin',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(options.headers || {})
+    }
+  });
+
+  const texto = await response.text();
+
+  let data = {};
+  try {
+    data = JSON.parse(texto);
+  } catch {
+    data = { error: texto };
+  }
+
+  if (!response.ok) {
+    throw new Error(data.error || `Erro ${response.status}`);
+  }
+
+  return data;
+}
+  const response = await fetch(url, {
+    ...options,
     headers: {
       'Content-Type':'application/json',
       ...(options.headers || {})
