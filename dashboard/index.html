@@ -60,25 +60,69 @@ button:hover{background:#b77aff}
 </main>
 
 <script>
-function atualizar(){
-document.getElementById('ptitulo').textContent=document.getElementById('titulo').value;
-document.getElementById('pdescricao').textContent=document.getElementById('descricao').value;
-let url=document.getElementById('imagem').value;
-let img=document.getElementById('pimagem');
-img.hidden=!url;
-if(url)img.src=url;
-document.getElementById('preview').style.borderColor=document.getElementById('cor').value;
+async function carregar() {
+  try {
+    const resposta = await fetch('/api/config');
+    if (!resposta.ok) throw new Error('Erro ao carregar');
+
+    const dados = await resposta.json();
+
+    document.getElementById('titulo').value = dados.title || '';
+    document.getElementById('descricao').value = dados.description || '';
+    document.getElementById('imagem').value = dados.image || '';
+    document.getElementById('cor').value = '#' + (dados.color || '7B2CBF');
+
+    atualizar();
+  } catch (erro) {
+    alert('Não foi possível carregar as configurações.');
+  }
 }
-function salvar(){
-let dados={
-titulo:document.getElementById('titulo').value,
-descricao:document.getElementById('descricao').value,
-imagem:document.getElementById('imagem').value,
-cor:document.getElementById('cor').value
-};
-localStorage.setItem('nexus-'+document.getElementById('painel').value,JSON.stringify(dados));
-alert('Configuração salva neste navegador!');
+
+function atualizar() {
+  document.getElementById('ptitulo').textContent =
+    document.getElementById('titulo').value;
+
+  document.getElementById('pdescricao').textContent =
+    document.getElementById('descricao').value;
+
+  const url = document.getElementById('imagem').value;
+  const img = document.getElementById('pimagem');
+
+  img.hidden = !url;
+  if (url) img.src = url;
+
+  document.getElementById('preview').style.borderColor =
+    document.getElementById('cor').value;
 }
+
+async function salvar() {
+  const dados = {
+    title: document.getElementById('titulo').value,
+    description: document.getElementById('descricao').value,
+    image: document.getElementById('imagem').value,
+    color: document.getElementById('cor').value.replace('#', '')
+  };
+
+  try {
+    const resposta = await fetch('/api/config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(dados)
+    });
+
+    if (!resposta.ok) throw new Error('Erro ao salvar');
+
+    const resultado = await resposta.json();
+
+    alert(resultado.panelUpdated
+      ? 'Configuração salva e painel atualizado no Discord!'
+      : 'Configuração salva! Use /painel no Discord para publicar.');
+  } catch (erro) {
+    alert('Não foi possível salvar. Verifique o acesso ao Dashboard.');
+  }
+}
+
+carregar();
 </script>
 </body>
 </html>
