@@ -1,22 +1,18 @@
-
-const express = require('express');
-
-const fs = require('node:fs');
-const path = require('node:path');
-
 const {
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
   ChannelType,
   Client,
-  GatewayIntentBits
+  GatewayIntentBits,
   EmbedBuilder,
   Events,
   PermissionFlagsBits,
   REST,
   Routes,
   SlashCommandBuilder,
+} = require('discord.js');
+
 const client = new Client({
   intents: [GatewayIntentBits.Guilds]
 });
