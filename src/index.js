@@ -105,7 +105,22 @@ function makePanel() {
     embed.setImage(config.image);
   }
 
-  const buttons = config.buttons.slice(0, 5).map(item =>
+  const buttons = config.buttons.slice(0, 5).map(item => {
+  const button = new ButtonBuilder()
+    .setCustomId(`nexus:ticket:${item.id}`)
+    .setLabel(item.label)
+    .setStyle(
+      item.id === 'comprar'
+        ? ButtonStyle.Success
+        : ButtonStyle.Secondary
+    );
+
+  if (item.id !== 'comprar' && item.emoji) {
+    button.setEmoji(item.emoji);
+  }
+
+  return button;
+});
     new ButtonBuilder()
       .setCustomId(`nexus:ticket:${item.id}`)
       .setLabel(item.label)
