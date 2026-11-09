@@ -1,4 +1,3 @@
-
 require('dotenv').config();
 
 const fs = require('fs');
@@ -106,23 +105,21 @@ function makePanel() {
   }
 
   const buttons = config.buttons.slice(0, 5).map(item => {
-  const button = new ButtonBuilder()
-    .setCustomId(`nexus:ticket:${item.id}`)
-    .setLabel(item.label)
-    .setStyle(
-      item.id === 'comprar'
-        ? ButtonStyle.Success
-        : ButtonStyle.Secondary
-    );
+    const button = new ButtonBuilder()
+      .setCustomId(`nexus:ticket:${item.id}`)
+      .setLabel(item.label)
+      .setStyle(
+        item.id === 'comprar'
+          ? ButtonStyle.Success
+          : ButtonStyle.Secondary
+      );
 
-  if (item.id !== 'comprar' && item.emoji) {
-    button.setEmoji(item.emoji);
-  }
+    if (item.id !== 'comprar' && item.emoji) {
+      button.setEmoji(item.emoji);
+    }
 
-  return button;
-});
-    
-  );
+    return button;
+  });
 
   return {
     embeds: [embed],
