@@ -1,7 +1,8 @@
+
 {
   "name": "nexus-blox-store-bot",
   "version": "1.0.0",
-  "description": "Bot Discord Nexus Blox Store com painel Middleman e tickets privados.",
+  "description": "Bot Discord Nexus Blox Store com Dashboard e tickets privados.",
   "main": "src/index.js",
   "scripts": {
     "start": "node src/index.js",
@@ -11,8 +12,8 @@
     "node": ">=18.17.0"
   },
   "dependencies": {
-  "discord.js": "^14.19.3",
-  "dotenv": "^16.4.7",
-  "express": "^4.21.2"
-}
+    "discord.js": "^14.19.3",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2"
+  }
 }
