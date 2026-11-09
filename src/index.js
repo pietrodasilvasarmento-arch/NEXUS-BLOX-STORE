@@ -17,7 +17,9 @@ const {
   REST,
   Routes,
   SlashCommandBuilder,
-} = require('discord.js');
+const client = new Client({
+  intents: [GatewayIntentBits.Guilds]
+});
 
 const {
   DISCORD_TOKEN,
