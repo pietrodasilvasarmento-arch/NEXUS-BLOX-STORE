@@ -40,60 +40,103 @@ const DATA_DIR = path.join(__dirname, '..', 'data');
 const CONFIG_FILE = path.join(DATA_DIR, 'panel-config.json');
 const DASHBOARD_DIR = path.join(__dirname, '..', 'dashboard');
 
-const DEFAULT_CONFIG = {
-  title: '💜 Nexus Blox Store | Middleman',
-  description: 'Selecione uma opção abaixo para abrir seu atendimento.',
-  color: '7B2CBF',
-  image: '',
-  buttons: [
-    { id: 'troca', label: 'Troca', emoji: '🔄' },
-    { id: 'comprar', label: 'Comprar', emoji: '🛒' },
-    { id: 'vender', label: 'Vender', emoji: '💰' },
-  ],
-  channelId: null,
-  messageId: null,
+const DEFAULT_PANELS = {
+  atendimento: {
+    title: '💜 Nexus Blox Store | Atendimento',
+    description: 'Selecione uma opção abaixo para abrir seu atendimento.',
+    color: '7B2CBF',
+    image: '',
+    buttons: [
+      { id: 'troca', label: 'Troca', emoji: '🔄' },
+      { id: 'comprar', label: 'Comprar', emoji: '' },
+      { id: 'vender', label: 'Vender', emoji: '💰' },
+      { id: 'suporte-geral', label: 'Suporte Geral', emoji: '💬' },
+      { id: 'denuncia', label: 'Denúncia', emoji: '🆘' },
+    ],
+    channelId: null,
+    messageId: null,
+  },
+
+  espadas: {
+    title: '⚔️ Nexus Blox Store | Espadas',
+    description: 'Clique abaixo para comprar sua espada.',
+    color: '7B2CBF',
+    image: '',
+    buttons: [
+      { id: 'comprar', label: 'Comprar', emoji: '' },
+    ],
+    channelId: null,
+    messageId: null,
+  },
 };
 
 function loadConfig() {
   try {
     if (!fs.existsSync(CONFIG_FILE)) {
-      return { ...DEFAULT_CONFIG };
+      return JSON.parse(JSON.stringify(DEFAULT_PANELS));
     }
 
     const saved = JSON.parse(
       fs.readFileSync(CONFIG_FILE, 'utf8')
     );
 
+    // Mantém configurações antigas do painel de atendimento.
+    if (!saved.panels) {
+      const atendimento = {
+        ...DEFAULT_PANELS.atendimento,
+        ...saved,
+      };
+
+      return {
+        atendimento,
+        espadas: JSON.parse(JSON.stringify(DEFAULT_PANELS.espadas)),
+      };
+    }
+
     return {
-      ...DEFAULT_CONFIG,
-      ...saved,
+      atendimento: {
+        ...DEFAULT_PANELS.atendimento,
+        ...(saved.panels.atendimento || {}),
+      },
+      espadas: {
+        ...DEFAULT_PANELS.espadas,
+        ...(saved.panels.espadas || {}),
+      },
     };
   } catch (error) {
     console.error('Erro ao carregar configuração:', error);
-    return { ...DEFAULT_CONFIG };
+    return JSON.parse(JSON.stringify(DEFAULT_PANELS));
   }
 }
 
-let config = loadConfig();
+let panels = loadConfig();
 
 function saveConfig() {
   fs.mkdirSync(DATA_DIR, { recursive: true });
 
   fs.writeFileSync(
     CONFIG_FILE,
-    JSON.stringify(config, null, 2)
+    JSON.stringify({ panels }, null, 2)
   );
 }
 
-function getColor() {
-  return /^[0-9A-Fa-f]{6}$/.test(config.color)
-    ? parseInt(config.color, 16)
+function getPanel(panelKey) {
+  return panels[panelKey] || panels.atendimento;
+}
+
+function getColor(panelKey) {
+  const color = getPanel(panelKey).color;
+
+  return /^[0-9A-Fa-f]{6}$/.test(color)
+    ? parseInt(color, 16)
     : PURPLE;
 }
 
-function makePanel() {
+function makePanel(panelKey) {
+  const config = getPanel(panelKey);
+
   const embed = new EmbedBuilder()
-    .setColor(getColor())
+    .setColor(getColor(panelKey))
     .setTitle(config.title)
     .setDescription(config.description)
     .setFooter({
@@ -114,11 +157,11 @@ function makePanel() {
     const style = styles[item.id] || ButtonStyle.Secondary;
 
     const button = new ButtonBuilder()
-      .setCustomId(`nexus:ticket:${item.id}`)
+      .setCustomId(`nexus:ticket:${panelKey}:${item.id}`)
       .setLabel(item.label)
       .setStyle(style);
 
-    if (item.id !== 'comprar' && item.emoji) {
+    if (item.emoji) {
       button.setEmoji(item.emoji);
     }
 
@@ -132,7 +175,14 @@ function makePanel() {
       : [],
   };
 }
-async function updatePanelMessage() {
+
+async function updatePanelMessage(panelKey) {
+  const config = getPanel(panelKey);
+
+  if (!config.channelId || !config.messageId) {
+    return false;
+  }
+
   try {
     const channel = await client.channels.fetch(
       config.channelId
@@ -146,11 +196,11 @@ async function updatePanelMessage() {
       config.messageId
     );
 
-    await message.edit(makePanel());
+    await message.edit(makePanel(panelKey));
 
     return true;
   } catch (error) {
-    console.error('Erro ao atualizar painel:', error);
+    console.error(`Erro ao atualizar painel ${panelKey}:`, error);
     return false;
   }
 }
@@ -158,9 +208,7 @@ async function updatePanelMessage() {
 function isStaff(member) {
   return (
     member.roles.cache.has(STAFF_ROLE_ID) ||
-    member.permissions.has(
-      PermissionFlagsBits.Administrator
-    )
+    member.permissions.has(PermissionFlagsBits.Administrator)
   );
 }
 
@@ -267,9 +315,7 @@ async function closeTicket(interaction) {
 
   if (LOG_CHANNEL_ID) {
     try {
-      const logChannel = await client.channels.fetch(
-        LOG_CHANNEL_ID
-      );
+      const logChannel = await client.channels.fetch(LOG_CHANNEL_ID);
 
       if (logChannel && logChannel.isTextBased()) {
         await logChannel.send(
@@ -291,14 +337,21 @@ async function closeTicket(interaction) {
 const commands = [
   new SlashCommandBuilder()
     .setName('painel')
-    .setDescription('Publicar ou atualizar o painel')
-    .setDefaultMemberPermissions(
-      PermissionFlagsBits.ManageGuild
-    ),
+    .setDescription('Publicar ou atualizar um painel')
+    .addStringOption(option =>
+      option.setName('tipo')
+        .setDescription('Escolha qual painel publicar')
+        .setRequired(true)
+        .addChoices(
+          { name: 'Atendimento', value: 'atendimento' },
+          { name: 'Espadas', value: 'espadas' }
+        )
+    )
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
 
   new SlashCommandBuilder()
     .setName('editarpainel')
-    .setDescription('Editar título e descrição do painel')
+    .setDescription('Editar título e descrição do painel de atendimento')
     .addStringOption(option =>
       option.setName('titulo')
         .setDescription('Novo título')
@@ -309,13 +362,11 @@ const commands = [
         .setDescription('Nova descrição')
         .setRequired(false)
     )
-    .setDefaultMemberPermissions(
-      PermissionFlagsBits.ManageGuild
-    ),
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
 
   new SlashCommandBuilder()
     .setName('imagem')
-    .setDescription('Alterar ou remover a imagem do painel')
+    .setDescription('Alterar ou remover a imagem do painel de atendimento')
     .addStringOption(option =>
       option.setName('url')
         .setDescription('Link da imagem')
@@ -326,25 +377,21 @@ const commands = [
         .setDescription('Remover a imagem')
         .setRequired(false)
     )
-    .setDefaultMemberPermissions(
-      PermissionFlagsBits.ManageGuild
-    ),
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
 
   new SlashCommandBuilder()
     .setName('cor')
-    .setDescription('Alterar a cor do painel')
+    .setDescription('Alterar a cor do painel de atendimento')
     .addStringOption(option =>
       option.setName('hex')
         .setDescription('Cor hexadecimal, exemplo: 7B2CBF')
         .setRequired(true)
     )
-    .setDefaultMemberPermissions(
-      PermissionFlagsBits.ManageGuild
-    ),
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
 
   new SlashCommandBuilder()
     .setName('adicionarbotao')
-    .setDescription('Adicionar um botão ao painel')
+    .setDescription('Adicionar um botão ao painel de atendimento')
     .addStringOption(option =>
       option.setName('nome')
         .setDescription('Nome do botão')
@@ -355,21 +402,17 @@ const commands = [
         .setDescription('Emoji do botão')
         .setRequired(false)
     )
-    .setDefaultMemberPermissions(
-      PermissionFlagsBits.ManageGuild
-    ),
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
 
   new SlashCommandBuilder()
     .setName('removerbotao')
-    .setDescription('Remover um botão do painel')
+    .setDescription('Remover um botão do painel de atendimento')
     .addStringOption(option =>
       option.setName('nome')
         .setDescription('Nome do botão')
         .setRequired(true)
     )
-    .setDefaultMemberPermissions(
-      PermissionFlagsBits.ManageGuild
-    ),
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
 ].map(command => command.toJSON());
 
 // DASHBOARD
@@ -377,8 +420,6 @@ const commands = [
 const app = express();
 
 app.use(express.json());
-
-// Disponibiliza os arquivos do Dashboard
 app.use(express.static(DASHBOARD_DIR));
 
 function protegerDashboard(req, res, next) {
@@ -391,11 +432,7 @@ function protegerDashboard(req, res, next) {
   }
 
   if (!autenticacao.startsWith('Basic ')) {
-    res.setHeader(
-      'WWW-Authenticate',
-      'Basic realm="Nexus Dashboard"'
-    );
-
+    res.setHeader('WWW-Authenticate', 'Basic realm="Nexus Dashboard"');
     return res.status(401).send('Acesso restrito.');
   }
 
@@ -410,26 +447,33 @@ function protegerDashboard(req, res, next) {
     : '';
 
   if (senha !== DASHBOARD_PASSWORD) {
-    res.setHeader(
-      'WWW-Authenticate',
-      'Basic realm="Nexus Dashboard"'
-    );
-
+    res.setHeader('WWW-Authenticate', 'Basic realm="Nexus Dashboard"');
     return res.status(401).send('Senha incorreta.');
   }
 
   next();
 }
 
-// Proteção somente das rotas da API
 app.use('/api', protegerDashboard);
 
 app.get('/api/config', (req, res) => {
-  res.json(config);
+  const panelKey = req.query.panel === 'espadas'
+    ? 'espadas'
+    : 'atendimento';
+
+  res.json({
+    ...getPanel(panelKey),
+    panel: panelKey,
+  });
 });
 
 app.post('/api/config', async (req, res) => {
-  const { title, description, color, image } = req.body;
+  const panelKey = req.body.panel === 'espadas'
+    ? 'espadas'
+    : 'atendimento';
+
+  const config = getPanel(panelKey);
+  const { title, description, color, image, buttons } = req.body;
 
   if (typeof title === 'string') {
     config.title = title.slice(0, 256);
@@ -466,14 +510,37 @@ app.post('/api/config', async (req, res) => {
     }
   }
 
+  if (Array.isArray(buttons)) {
+    if (buttons.length > 5) {
+      return res.status(400).json({
+        error: 'O painel pode ter no máximo 5 botões.',
+      });
+    }
+
+    config.buttons = buttons
+      .filter(item =>
+        item &&
+        typeof item.id === 'string' &&
+        typeof item.label === 'string'
+      )
+      .map(item => ({
+        id: safeChannelPart(item.id),
+        label: item.label.slice(0, 80),
+        emoji: typeof item.emoji === 'string'
+          ? item.emoji.slice(0, 20)
+          : '',
+      }));
+  }
+
   try {
     saveConfig();
 
-    const updated = await updatePanelMessage();
+    const updated = await updatePanelMessage(panelKey);
 
     return res.json({
       success: true,
       panelUpdated: updated,
+      panel: panelKey,
     });
   } catch (error) {
     console.error('Erro ao salvar painel:', error);
@@ -507,16 +574,11 @@ client.once(Events.ClientReady, async () => {
     }).setToken(DISCORD_TOKEN);
 
     await rest.put(
-      Routes.applicationGuildCommands(
-        CLIENT_ID,
-        GUILD_ID
-      ),
+      Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID),
       { body: commands }
     );
 
-    console.log(
-      'Todos os comandos foram registrados com sucesso.'
-    );
+    console.log('Todos os comandos foram registrados com sucesso.');
   } catch (error) {
     console.error('Erro ao registrar comandos:', error);
   }
@@ -539,33 +601,35 @@ client.on(Events.InteractionCreate, async interaction => {
       }
 
       if (interaction.commandName === 'painel') {
-        await interaction.deferReply({
-          ephemeral: true,
-        });
+        const panelKey = interaction.options.getString('tipo');
 
-        const updated = await updatePanelMessage();
+        await interaction.deferReply({ ephemeral: true });
+
+        const updated = await updatePanelMessage(panelKey);
 
         if (updated) {
           return interaction.editReply(
-            'Painel atualizado!'
+            `Painel de ${panelKey} atualizado!`
           );
         }
 
         const message = await interaction.channel.send(
-          makePanel()
+          makePanel(panelKey)
         );
 
+        const config = getPanel(panelKey);
         config.channelId = message.channel.id;
         config.messageId = message.id;
 
         saveConfig();
 
         return interaction.editReply(
-          'Painel publicado e salvo!'
+          `Painel de ${panelKey} publicado e salvo!`
         );
       }
 
       if (interaction.commandName === 'editarpainel') {
+        const config = getPanel('atendimento');
         const title = interaction.options.getString('titulo');
         const description = interaction.options.getString('descricao');
 
@@ -574,17 +638,18 @@ client.on(Events.InteractionCreate, async interaction => {
 
         saveConfig();
 
-        const updated = await updatePanelMessage();
+        const updated = await updatePanelMessage('atendimento');
 
         return interaction.reply({
           content: updated
-            ? 'Título e descrição atualizados!'
-            : 'Configuração salva. Use /painel para publicar o painel.',
+            ? 'Título e descrição do atendimento atualizados!'
+            : 'Configuração salva. Use /painel e escolha Atendimento.',
           ephemeral: true,
         });
       }
 
       if (interaction.commandName === 'imagem') {
+        const config = getPanel('atendimento');
         const url = interaction.options.getString('url');
         const remove = interaction.options.getBoolean('remover');
 
@@ -614,19 +679,19 @@ client.on(Events.InteractionCreate, async interaction => {
 
         saveConfig();
 
-        const updated = await updatePanelMessage();
+        const updated = await updatePanelMessage('atendimento');
 
         return interaction.reply({
           content: updated
-            ? 'Imagem atualizada!'
-            : 'Imagem salva. Use /painel para publicar.',
+            ? 'Imagem do atendimento atualizada!'
+            : 'Imagem salva. Use /painel e escolha Atendimento.',
           ephemeral: true,
         });
       }
 
       if (interaction.commandName === 'cor') {
-        const hex = interaction.options.getString('hex')
-          .replace('#', '');
+        const config = getPanel('atendimento');
+        const hex = interaction.options.getString('hex').replace('#', '');
 
         if (!/^[0-9A-Fa-f]{6}$/.test(hex)) {
           return interaction.reply({
@@ -636,20 +701,21 @@ client.on(Events.InteractionCreate, async interaction => {
         }
 
         config.color = hex;
-
         saveConfig();
 
-        const updated = await updatePanelMessage();
+        const updated = await updatePanelMessage('atendimento');
 
         return interaction.reply({
           content: updated
-            ? 'Cor atualizada!'
-            : 'Cor salva. Use /painel para publicar.',
+            ? 'Cor do atendimento atualizada!'
+            : 'Cor salva. Use /painel e escolha Atendimento.',
           ephemeral: true,
         });
       }
 
       if (interaction.commandName === 'adicionarbotao') {
+        const config = getPanel('atendimento');
+
         if (config.buttons.length >= 5) {
           return interaction.reply({
             content: 'O painel já tem 5 botões. Remova um antes de adicionar outro.',
@@ -679,17 +745,18 @@ client.on(Events.InteractionCreate, async interaction => {
 
         saveConfig();
 
-        const updated = await updatePanelMessage();
+        const updated = await updatePanelMessage('atendimento');
 
         return interaction.reply({
           content: updated
-            ? 'Botão adicionado ao painel!'
-            : 'Botão salvo. Use /painel para publicar.',
+            ? 'Botão adicionado ao painel de atendimento!'
+            : 'Botão salvo. Use /painel e escolha Atendimento.',
           ephemeral: true,
         });
       }
 
       if (interaction.commandName === 'removerbotao') {
+        const config = getPanel('atendimento');
         const name = safeChannelPart(
           interaction.options.getString('nome')
         );
@@ -710,12 +777,12 @@ client.on(Events.InteractionCreate, async interaction => {
 
         saveConfig();
 
-        const updated = await updatePanelMessage();
+        const updated = await updatePanelMessage('atendimento');
 
         return interaction.reply({
           content: updated
             ? 'Botão removido!'
-            : 'Remoção salva. Use /painel para publicar.',
+            : 'Remoção salva. Use /painel e escolha Atendimento.',
           ephemeral: true,
         });
       }
@@ -742,12 +809,15 @@ client.on(Events.InteractionCreate, async interaction => {
       }
 
       if (customId.startsWith('nexus:ticket:')) {
-        const id = customId.replace(
-          'nexus:ticket:',
-          ''
-        );
+        const parts = customId.split(':');
+        const panelKey = parts[2];
+        const id = parts[3];
 
-        const ticketType = config.buttons.find(
+        if (!['atendimento', 'espadas'].includes(panelKey)) {
+          return;
+        }
+
+        const ticketType = getPanel(panelKey).buttons.find(
           button => button.id === id
         );
 
