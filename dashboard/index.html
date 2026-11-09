@@ -3,340 +3,369 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>NEXUS BLOX STORE</title>
+<title>Nexus Blox Store | Dashboard</title>
 <style>
 *{box-sizing:border-box}
-body{margin:0;background:#100b19;color:white;font-family:Arial,sans-serif}
-header{background:#21152e;padding:22px;border-bottom:1px solid #693c91}
-h1,h2{color:#c18aff}
-main{max-width:850px;margin:25px auto;padding:15px}
-.card{background:#21172e;padding:20px;border-radius:14px;margin:18px 0}
-label{display:block;margin-top:16px}
-input,textarea,select{width:100%;padding:12px;margin-top:7px;border:0;border-radius:8px;background:#352642;color:white}
-button{background:#9b52e8;color:white;border:0;padding:13px;border-radius:9px;margin-top:15px;font-weight:bold;cursor:pointer}
-button:hover{background:#b77aff}
-#preview{border:1px solid #9b52e8;padding:18px;border-radius:12px;margin-top:15px}
-#preview img{max-width:100%;border-radius:10px}
-.small{color:#bca9ca;font-size:13px}
-.status{margin-top:12px;color:#c18aff;font-size:14px}
-.categoria{background:#352642;padding:14px;border-radius:10px;margin-top:12px}
-.categoria strong{display:block;margin-bottom:8px}
+body{margin:0;background:#100b19;color:#f5edff;font-family:Arial,sans-serif}
+header{padding:24px 18px;background:#1b1028;border-bottom:1px solid #39234e}
+h1{margin:0;color:#c58aff;font-size:25px}
+header p{color:#bba9ca;margin-bottom:0}
+main{max-width:900px;margin:25px auto;padding:0 15px}
+.card{background:#1c1428;border:1px solid #3c2852;border-radius:15px;padding:20px;margin-bottom:18px}
+h2{font-size:19px;margin-top:0;color:#d6adff}
+label{display:block;margin:15px 0 7px;color:#d8c5eb;font-size:14px}
+input,textarea,select{width:100%;padding:12px;border-radius:9px;border:1px solid #51366d;background:#100b19;color:white;font-size:15px}
+textarea{min-height:100px;resize:vertical}
+button{border:0;border-radius:9px;padding:12px 16px;font-weight:bold;cursor:pointer;font-size:14px}
+.primary{background:#8c45c7;color:white}
+.secondary{background:#38234d;color:#eee}
+.danger{background:#a82e4c;color:white}
+.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:17px}
+.category{border:1px solid #49315f;padding:14px;border-radius:10px;margin-top:12px;background:#160f20}
+.category-grid{display:grid;grid-template-columns:2fr 1fr 1fr;gap:10px}
+.category-grid label{margin-top:8px}
+.small{font-size:12px;color:#b9a6ca}
+#status{padding:12px;border-radius:9px;margin-bottom:15px;display:none}
+#preview{border:1px solid #51366d;border-radius:12px;padding:18px;background:#130d1c}
+.preview-button{display:inline-block;margin:5px;padding:10px 14px;border-radius:8px;color:white;font-size:13px}
+.green{background:#23834c}.blue{background:#2864a5}.red{background:#a82e4c}.gray{background:#51475d}
+@media(max-width:600px){.category-grid{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
-
 <header>
-<h1>💜 NEXUS BLOX STORE</h1>
-<p>Painel de gerenciamento</p>
+  <h1>💜 NEXUS BLOX STORE</h1>
+  <p>Painéis e categorias da sua loja</p>
 </header>
 
 <main>
-<div class="card">
-<h2>🎛️ Gerenciar painéis</h2>
+  <div id="status"></div>
 
-<label>Escolher painel</label>
-<select id="painel">
-<option value="atendimento">🎫 Painel de Atendimento</option>
-<option value="espadas">⚔️ Painel de Espadas</option>
-</select>
+  <section class="card">
+    <h2>📋 Seus painéis</h2>
+    <label for="panelSelect">Escolha qual painel deseja editar</label>
+    <select id="panelSelect"></select>
+    <div class="actions">
+      <button class="primary" id="newPanel">＋ Adicionar novo painel</button>
+      <button class="secondary" id="reload">↻ Atualizar lista</button>
+    </div>
+    <p class="small">Cada painel tem título, descrição, imagem e categorias independentes.</p>
+  </section>
 
-<label>Título do painel</label>
-<input id="titulo">
+  <section class="card">
+    <h2>✏️ Editar painel</h2>
 
-<label>Descrição</label>
-<textarea id="descricao" rows="3"></textarea>
+    <label for="title">Título do painel</label>
+    <input id="title" maxlength="256" placeholder="Nome do painel">
 
-<label>Link da imagem</label>
-<input id="imagem" placeholder="Cole o link da imagem aqui">
+    <label for="description">Descrição</label>
+    <textarea id="description" maxlength="4000" placeholder="Descrição dos produtos..."></textarea>
 
-<label>Cor do painel</label>
-<input id="cor" type="color" value="#7b2cbf">
+    <label for="image">Imagem (link opcional)</label>
+    <input id="image" placeholder="https://...">
 
-<h2>🎫 Categorias</h2>
-<p class="small">As cores dos botões são definidas automaticamente.</p>
+    <label for="color">Cor do painel (HEX, sem #)</label>
+    <input id="color" maxlength="6" placeholder="7B2CBF">
 
-<div id="categorias"></div>
+    <div class="actions">
+      <button class="primary" id="save">💾 Salvar alterações</button>
+    </div>
+    <p class="small">Depois de salvar, use /painel no Discord com o ID do painel para publicar ou atualizar a mensagem.</p>
+  </section>
 
-<button onclick="atualizar()">👁️ Visualizar alterações</button>
-<button onclick="salvar()">💾 Salvar configuração</button>
-<button onclick="sair()">🔒 Sair do Dashboard</button>
+  <section class="card">
+    <h2>🏷️ Categorias e botões</h2>
+    <div id="categories"></div>
+    <div class="actions">
+      <button class="primary" id="addCategory">＋ Adicionar categoria</button>
+    </div>
+    <p class="small">Você pode adicionar até 25 botões por painel. Cada botão abre um ticket.</p>
+  </section>
 
-<p id="status" class="status"></p>
-</div>
-
-<div class="card">
-<h2>👁️ Pré-visualização</h2>
-<div id="preview">
-<h2 id="ptitulo"></h2>
-<p id="pdescricao"></p>
-<img id="pimagem" hidden>
-<div id="pbotoes"></div>
-</div>
-</div>
-
-<p class="small">NEXUS BLOX STORE • Dashboard</p>
+  <section class="card">
+    <h2>👀 Prévia do painel</h2>
+    <div id="preview">
+      <h3 id="previewTitle">Título do painel</h3>
+      <p id="previewDescription">Descrição do painel</p>
+      <div id="previewButtons"></div>
+    </div>
+  </section>
 </main>
 
 <script>
-const padraoAtendimento = [
- {id:'troca',label:'Troca',emoji:'🔄',style:'secondary'},
- {id:'comprar',label:'Comprar',emoji:'',style:'success'},
- {id:'vender',label:'Vender',emoji:'💰',style:'secondary'},
- {id:'suporte-geral',label:'Suporte Geral',emoji:'💬',style:'primary'},
- {id:'denuncia',label:'Denúncia',emoji:'🆘',style:'danger'}
-];
+const $ = id => document.getElementById(id);
 
-const padraoEspadas = [
- {id:'comprar',label:'Comprar',emoji:'',style:'success'}
-];
+let currentPanel = 'atendimento';
+let panels = [];
+let buttons = [];
 
-let botoes = [];
-
-function painelAtual(){
- return document.getElementById('painel').value;
+function showStatus(message, error=false) {
+  const el = $('status');
+  el.textContent = message;
+  el.style.display = 'block';
+  el.style.background = error ? '#592033' : '#243d30';
+  el.style.color = '#fff';
+  window.scrollTo({top:0,behavior:'smooth'});
 }
 
-function padraoAtual(){
- return painelAtual()==='espadas'
-  ? padraoEspadas
-  : padraoAtendimento;
-}
+async function api(url, options={}) {
+  const response = await fetch(url, {
+    ...options,
+    headers: {
+      'Content-Type':'application/json',
+      ...(options.headers || {})
+    }
+  });
 
-function obterSenha(){
- return sessionStorage.getItem('nexus_dashboard_auth');
-}
+  let data = {};
+  try { data = await response.json(); } catch {}
 
-function pedirSenha(){
- const senha=prompt('Digite a senha do Dashboard Nexus:');
- if(senha===null) throw new Error('Acesso cancelado.');
- if(!senha) throw new Error('Digite uma senha.');
- const token=btoa('nexus:'+senha);
- sessionStorage.setItem('nexus_dashboard_auth',token);
- return token;
-}
-
-async function requisicaoProtegida(url,options={}){
- let token=obterSenha();
- if(!token) token=pedirSenha();
-
- const executar=auth=>fetch(url,{
-  ...options,
-  headers:{
-   ...options.headers,
-   Authorization:'Basic '+auth
+  if (!response.ok) {
+    throw new Error(data.error || `Erro ${response.status}`);
   }
- });
-
- let resposta=await executar(token);
-
- if(resposta.status===401){
-  sessionStorage.removeItem('nexus_dashboard_auth');
-  token=pedirSenha();
-  resposta=await executar(token);
- }
-
- if(resposta.status===401){
-  sessionStorage.removeItem('nexus_dashboard_auth');
-  throw new Error('Senha incorreta.');
- }
-
- if(!resposta.ok){
-  const erro=await resposta.json().catch(()=>({}));
-  throw new Error(erro.error||'Erro HTTP: '+resposta.status);
- }
-
- return resposta;
+  return data;
 }
 
-function mostrarCategorias(){
- const area=document.getElementById('categorias');
- area.innerHTML='';
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, char => ({
+    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+  })[char]);
+}
 
- botoes.forEach((item,index)=>{
-  const div=document.createElement('div');
-  div.className='categoria';
+async function loadPanels(selected) {
+  const data = await api('/api/panels');
+  panels = data.panels || [];
 
-  const nome=document.createElement('strong');
-  nome.textContent=(item.emoji||'')+' '+item.label;
-  div.appendChild(nome);
+  $('panelSelect').innerHTML = '';
 
-  const labelNome=document.createElement('label');
-  labelNome.textContent='Nome da categoria';
-
-  const inputNome=document.createElement('input');
-  inputNome.value=item.label;
-  inputNome.maxLength=80;
-
-  inputNome.addEventListener('input',()=>{
-   botoes[index].label=inputNome.value;
-   nome.textContent=(botoes[index].emoji||'')+' '+inputNome.value;
-   atualizarBotoes();
+  panels.forEach(panel => {
+    const option = document.createElement('option');
+    option.value = panel.id;
+    option.textContent = panel.title + ' (' + panel.id + ')';
+    $('panelSelect').appendChild(option);
   });
 
-  div.appendChild(labelNome);
-  div.appendChild(inputNome);
+  if (!panels.length) {
+    showStatus('Nenhum painel encontrado.', true);
+    return;
+  }
 
-  const labelEmoji=document.createElement('label');
-  labelEmoji.textContent='Emoji';
+  const wanted = selected || currentPanel;
+  currentPanel = panels.some(p => p.id === wanted) ? wanted : panels[0].id;
+  $('panelSelect').value = currentPanel;
+  await loadPanel();
+}
 
-  const inputEmoji=document.createElement('input');
-  inputEmoji.value=item.emoji||'';
-  inputEmoji.maxLength=32;
+async function loadPanel() {
+  currentPanel = $('panelSelect').value;
+  const panel = await api('/api/config?panel=' + encodeURIComponent(currentPanel));
 
-  inputEmoji.addEventListener('input',()=>{
-   botoes[index].emoji=inputEmoji.value;
-   nome.textContent=inputEmoji.value+' '+botoes[index].label;
-   atualizarBotoes();
+  $('title').value = panel.title || '';
+  $('description').value = panel.description || '';
+  $('image').value = panel.image || '';
+  $('color').value = panel.color || '7B2CBF';
+
+  buttons = (panel.buttons || []).map(button => ({...button}));
+  renderCategories();
+  renderPreview();
+}
+
+function renderCategories() {
+  const container = $('categories');
+  container.innerHTML = '';
+
+  if (!buttons.length) {
+    container.innerHTML = '<p class="small">Nenhuma categoria neste painel. Clique em Adicionar categoria.</p>';
+    return;
+  }
+
+  buttons.forEach((button,index) => {
+    const item = document.createElement('div');
+    item.className = 'category';
+
+    item.innerHTML = `
+      <div class="category-grid">
+        <div>
+          <label>Nome do botão</label>
+          <input data-field="label" data-index="${index}" value="${escapeHtml(button.label)}" maxlength="80">
+        </div>
+        <div>
+          <label>Emoji</label>
+          <input data-field="emoji" data-index="${index}" value="${escapeHtml(button.emoji || '')}" maxlength="20" placeholder="Ex.: 💬">
+        </div>
+        <div>
+          <label>Cor do botão</label>
+          <select data-field="style" data-index="${index}">
+            <option value="Primary" ${button.style==='Primary'?'selected':''}>Azul</option>
+            <option value="Secondary" ${button.style==='Secondary'?'selected':''}>Cinza</option>
+            <option value="Success" ${button.style==='Success'?'selected':''}>Verde</option>
+            <option value="Danger" ${button.style==='Danger'?'selected':''}>Vermelho</option>
+          </select>
+        </div>
+      </div>
+      <div class="actions">
+        <button class="danger" data-remove="${index}">Remover categoria</button>
+      </div>
+    `;
+
+    container.appendChild(item);
   });
 
-  div.appendChild(labelEmoji);
-  div.appendChild(inputEmoji);
+  container.querySelectorAll('[data-field]').forEach(input => {
+    input.addEventListener('input', updateButtonField);
+    input.addEventListener('change', updateButtonField);
+  });
 
-  const cores={
-   success:'🟢 Verde',
-   primary:'🔵 Azul',
-   danger:'🔴 Vermelho',
-   secondary:'⚪ Cinza'
+  container.querySelectorAll('[data-remove]').forEach(button => {
+    button.addEventListener('click', () => {
+      const index = Number(button.dataset.remove);
+      buttons.splice(index,1);
+      renderCategories();
+      renderPreview();
+    });
+  });
+}
+
+function updateButtonField(event) {
+  const index = Number(event.target.dataset.index);
+  const field = event.target.dataset.field;
+  buttons[index][field] = event.target.value;
+  renderPreview();
+}
+
+function renderPreview() {
+  $('previewTitle').textContent = $('title').value || 'Título do painel';
+  $('previewDescription').textContent = $('description').value || 'Descrição do painel';
+
+  const color = $('color').value.replace('#','');
+  if (/^[0-9a-fA-F]{6}$/.test(color)) {
+    $('preview').style.borderColor = '#' + color;
+  }
+
+  const container = $('previewButtons');
+  container.innerHTML = '';
+
+  buttons.forEach(button => {
+    const el = document.createElement('span');
+    const styles = {
+      Success:'green',
+      Primary:'blue',
+      Danger:'red',
+      Secondary:'gray'
+    };
+    el.className = 'preview-button ' + (styles[button.style] || 'gray');
+    el.textContent = (button.emoji ? button.emoji + ' ' : '') + button.label;
+    container.appendChild(el);
+  });
+}
+
+async function savePanel() {
+  const payload = {
+    panelId: currentPanel,
+    title: $('title').value,
+    description: $('description').value,
+    image: $('image').value,
+    color: $('color').value.replace('#',''),
+    buttons
   };
 
-  const cor=document.createElement('p');
-  cor.textContent='Cor do botão: '+cores[item.style];
-  div.appendChild(cor);
-
-  area.appendChild(div);
- });
-}
-
-function atualizarBotoes(){
- const area=document.getElementById('pbotoes');
- area.innerHTML='';
-
- botoes.forEach(item=>{
-  const botao=document.createElement('button');
-  botao.textContent=(item.emoji?item.emoji+' ':'')+item.label;
-  botao.style.marginRight='6px';
-
-  const cores={
-   success:'#248b45',
-   primary:'#2875d0',
-   danger:'#d13b3b',
-   secondary:'#686868'
-  };
-
-  botao.style.background=cores[item.style]||'#686868';
-  area.appendChild(botao);
- });
-}
-
-function atualizar(){
- document.getElementById('ptitulo').textContent=
-  document.getElementById('titulo').value;
-
- document.getElementById('pdescricao').textContent=
-  document.getElementById('descricao').value;
-
- const url=document.getElementById('imagem').value;
- const img=document.getElementById('pimagem');
-
- img.hidden=!url;
- if(url) img.src=url;
-
- document.getElementById('preview').style.borderColor=
-  document.getElementById('cor').value;
-
- atualizarBotoes();
-}
-
-async function carregar(){
- const status=document.getElementById('status');
-
- try{
-  status.textContent='Carregando configurações...';
-
-  const painel=painelAtual();
-  const resposta=await requisicaoProtegida(
-   '/api/config?panel='+painel
-  );
-
-  const dados=await resposta.json();
-
-  document.getElementById('titulo').value=dados.title||'';
-  document.getElementById('descricao').value=dados.description||'';
-  document.getElementById('imagem').value=dados.image||'';
-  document.getElementById('cor').value='#'+(dados.color||'7B2CBF');
-
-  const padrao=padraoAtual();
-
-  if(Array.isArray(dados.buttons)){
-   botoes=padrao.map(def=>{
-    const salvo=dados.buttons.find(b=>b.id===def.id);
-    return {...def,...(salvo||{})};
-   });
-  }else{
-   botoes=padrao.map(item=>({...item}));
-  }
-
-  mostrarCategorias();
-  atualizar();
-
-  status.textContent='💜 Configurações carregadas!';
-
- }catch(erro){
-  status.textContent=erro.message;
-
-  if(erro.message!=='Acesso cancelado.'){
-   alert('Não foi possível carregar: '+erro.message);
-  }
- }
-}
-
-async function salvar(){
- const status=document.getElementById('status');
-
- const dados={
-  panel:painelAtual(),
-  title:document.getElementById('titulo').value,
-  description:document.getElementById('descricao').value,
-  image:document.getElementById('imagem').value,
-  color:document.getElementById('cor').value.replace('#',''),
-  buttons:botoes
- };
-
- try{
-  status.textContent='Salvando configurações...';
-
-  const resposta=await requisicaoProtegida('/api/config',{
-   method:'POST',
-   headers:{'Content-Type':'application/json'},
-   body:JSON.stringify(dados)
+  await api('/api/config', {
+    method:'POST',
+    body:JSON.stringify(payload)
   });
 
-  const resultado=await resposta.json();
-  atualizar();
-
-  if(resultado.panelUpdated){
-   status.textContent='✅ Painel atualizado no Discord!';
-   alert('💜 Configuração salva e painel atualizado no Discord!');
-  }else{
-   status.textContent='✅ Configuração salva!';
-   alert('Configuração salva! Use /painel no Discord e escolha o painel para publicar.');
-  }
-
- }catch(erro){
-  status.textContent=erro.message;
-  alert('Não foi possível salvar: '+erro.message);
- }
+  showStatus('Painel salvo! Para atualizar a mensagem no Discord, use /painel id:' + currentPanel + '.');
+  await loadPanels(currentPanel);
 }
 
-function sair(){
- sessionStorage.removeItem('nexus_dashboard_auth');
- alert('Você saiu do Dashboard. Atualize a página para entrar novamente.');
- location.reload();
+async function createPanel() {
+  const title = prompt('Qual será o nome do novo painel?');
+  if (!title || !title.trim()) return;
+
+  const id = prompt('Escolha um ID curto, sem espaços. Exemplo: frutas');
+  if (!id || !id.trim()) return;
+
+  const data = await api('/api/panels', {
+    method:'POST',
+    body:JSON.stringify({
+      id:id.trim(),
+      title:title.trim(),
+      description:'Selecione uma opção abaixo.'
+    })
+  });
+
+  await loadPanels(data.panel.id);
+  showStatus('Novo painel criado! Agora adicione as categorias e salve.');
 }
 
-document.getElementById('painel').addEventListener('change',carregar);
+async function addCategory() {
+  const label = prompt('Qual será o nome da categoria ou botão?');
+  if (!label || !label.trim()) return;
 
-carregar();
+  const emoji = prompt('Qual emoji deseja usar? Deixe vazio se não quiser emoji.') || '';
+  const style = prompt('Escolha a cor: azul, cinza, verde ou vermelho.','cinza') || 'cinza';
+
+  const styles = {
+    azul:'Primary',
+    cinza:'Secondary',
+    verde:'Success',
+    vermelho:'Danger'
+  };
+
+  const id = label.trim()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g,'')
+    .toLowerCase()
+    .replace(/[^a-z0-9-]/g,'-')
+    .replace(/-+/g,'-')
+    .replace(/^-|-$/g,'');
+
+  await api('/api/panels/' + encodeURIComponent(currentPanel) + '/buttons', {
+    method:'POST',
+    body:JSON.stringify({
+      id,
+      label:label.trim(),
+      emoji:emoji.trim(),
+      style:styles[style.toLowerCase()] || 'Secondary'
+    })
+  });
+
+  await loadPanel();
+  showStatus('Categoria adicionada! Clique em Salvar alterações para guardar as configurações.');
+}
+
+$('panelSelect').addEventListener('change', async () => {
+  try { await loadPanel(); }
+  catch(error) { showStatus(error.message,true); }
+});
+
+$('newPanel').addEventListener('click', async () => {
+  try { await createPanel(); }
+  catch(error) { showStatus(error.message,true); }
+});
+
+$('addCategory').addEventListener('click', async () => {
+  try { await addCategory(); }
+  catch(error) { showStatus(error.message,true); }
+});
+
+$('save').addEventListener('click', async () => {
+  try { await savePanel(); }
+  catch(error) { showStatus(error.message,true); }
+});
+
+$('reload').addEventListener('click', async () => {
+  try { await loadPanels(currentPanel); showStatus('Lista atualizada!'); }
+  catch(error) { showStatus(error.message,true); }
+});
+
+['title','description','color'].forEach(id => {
+  $(id).addEventListener('input',renderPreview);
+});
+
+loadPanels('atendimento').catch(error => {
+  showStatus('Não consegui carregar o Dashboard: ' + error.message,true);
+});
 </script>
 </body>
 </html>
