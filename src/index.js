@@ -33,7 +33,6 @@ const {
 const CLIENT_ID = '1567710436038541352';
 const GUILD_ID = '1565709224393187388';
 const STAFF_ROLE_ID = '1567191306977943712';
-
 const PURPLE = 0x7B2CBF;
 
 const DATA_DIR = path.join(__dirname, '..', 'data');
@@ -42,177 +41,36 @@ const DASHBOARD_DIR = path.join(__dirname, '..', 'dashboard');
 
 const DEFAULT_PANELS = {
   atendimento: {
+    id: 'atendimento',
     title: '💜 Nexus Blox Store | Atendimento',
     description: 'Selecione uma opção abaixo para abrir seu atendimento.',
     color: '7B2CBF',
     image: '',
     buttons: [
-      { id: 'troca', label: 'Troca', emoji: '🔄' },
-      { id: 'comprar', label: 'Comprar', emoji: '' },
-      { id: 'vender', label: 'Vender', emoji: '💰' },
-      { id: 'suporte-geral', label: 'Suporte Geral', emoji: '💬' },
-      { id: 'denuncia', label: 'Denúncia', emoji: '🆘' },
+      { id: 'troca', label: 'Troca', emoji: '🔄', style: 'Secondary' },
+      { id: 'comprar', label: 'Comprar', emoji: '', style: 'Success' },
+      { id: 'vender', label: 'Vender', emoji: '💰', style: 'Secondary' },
+      { id: 'suporte-geral', label: 'Suporte Geral', emoji: '💬', style: 'Primary' },
+      { id: 'denuncia', label: 'Denúncia', emoji: '🆘', style: 'Danger' },
     ],
     channelId: null,
     messageId: null,
   },
-
   espadas: {
+    id: 'espadas',
     title: '⚔️ Nexus Blox Store | Espadas',
-    description: 'Clique abaixo para comprar sua espada.',
+    description: 'Produtos disponíveis na loja.',
     color: '7B2CBF',
     image: '',
     buttons: [
-      { id: 'comprar', label: 'Comprar', emoji: '' },
+      { id: 'comprar', label: 'Comprar', emoji: '', style: 'Success' },
     ],
     channelId: null,
     messageId: null,
   },
 };
 
-function loadConfig() {
-  try {
-    if (!fs.existsSync(CONFIG_FILE)) {
-      return JSON.parse(JSON.stringify(DEFAULT_PANELS));
-    }
-
-    const saved = JSON.parse(
-      fs.readFileSync(CONFIG_FILE, 'utf8')
-    );
-
-    // Mantém configurações antigas do painel de atendimento.
-    if (!saved.panels) {
-      const atendimento = {
-        ...DEFAULT_PANELS.atendimento,
-        ...saved,
-      };
-
-      return {
-        atendimento,
-        espadas: JSON.parse(JSON.stringify(DEFAULT_PANELS.espadas)),
-      };
-    }
-
-    return {
-      atendimento: {
-        ...DEFAULT_PANELS.atendimento,
-        ...(saved.panels.atendimento || {}),
-      },
-      espadas: {
-        ...DEFAULT_PANELS.espadas,
-        ...(saved.panels.espadas || {}),
-      },
-    };
-  } catch (error) {
-    console.error('Erro ao carregar configuração:', error);
-    return JSON.parse(JSON.stringify(DEFAULT_PANELS));
-  }
-}
-
-let panels = loadConfig();
-
-function saveConfig() {
-  fs.mkdirSync(DATA_DIR, { recursive: true });
-
-  fs.writeFileSync(
-    CONFIG_FILE,
-    JSON.stringify({ panels }, null, 2)
-  );
-}
-
-function getPanel(panelKey) {
-  return panels[panelKey] || panels.atendimento;
-}
-
-function getColor(panelKey) {
-  const color = getPanel(panelKey).color;
-
-  return /^[0-9A-Fa-f]{6}$/.test(color)
-    ? parseInt(color, 16)
-    : PURPLE;
-}
-
-function makePanel(panelKey) {
-  const config = getPanel(panelKey);
-
-  const embed = new EmbedBuilder()
-    .setColor(getColor(panelKey))
-    .setTitle(config.title)
-    .setDescription(config.description)
-    .setFooter({
-      text: 'Nexus Blox Store',
-    });
-
-  if (config.image) {
-    embed.setImage(config.image);
-  }
-
-  const buttons = config.buttons.slice(0, 5).map(item => {
-    const styles = {
-      comprar: ButtonStyle.Success,
-      'suporte-geral': ButtonStyle.Primary,
-      denuncia: ButtonStyle.Danger,
-    };
-
-    const style = styles[item.id] || ButtonStyle.Secondary;
-
-    const button = new ButtonBuilder()
-      .setCustomId(`nexus:ticket:${panelKey}:${item.id}`)
-      .setLabel(item.label)
-      .setStyle(style);
-
-    if (item.emoji) {
-      button.setEmoji(item.emoji);
-    }
-
-    return button;
-  });
-
-  return {
-    embeds: [embed],
-    components: buttons.length
-      ? [new ActionRowBuilder().addComponents(buttons)]
-      : [],
-  };
-}
-
-async function updatePanelMessage(panelKey) {
-  const config = getPanel(panelKey);
-
-  if (!config.channelId || !config.messageId) {
-    return false;
-  }
-
-  try {
-    const channel = await client.channels.fetch(
-      config.channelId
-    );
-
-    if (!channel || !channel.isTextBased()) {
-      return false;
-    }
-
-    const message = await channel.messages.fetch(
-      config.messageId
-    );
-
-    await message.edit(makePanel(panelKey));
-
-    return true;
-  } catch (error) {
-    console.error(`Erro ao atualizar painel ${panelKey}:`, error);
-    return false;
-  }
-}
-
-function isStaff(member) {
-  return (
-    member.roles.cache.has(STAFF_ROLE_ID) ||
-    member.permissions.has(PermissionFlagsBits.Administrator)
-  );
-}
-
-function safeChannelPart(value) {
+function safeId(value) {
   return String(value)
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
@@ -220,7 +78,155 @@ function safeChannelPart(value) {
     .replace(/[^a-z0-9-]/g, '-')
     .replace(/-+/g, '-')
     .replace(/^-|-$/g, '')
-    .slice(0, 40) || 'membro';
+    .slice(0, 40) || 'painel';
+}
+
+function clone(value) {
+  return JSON.parse(JSON.stringify(value));
+}
+
+function loadConfig() {
+  try {
+    if (!fs.existsSync(CONFIG_FILE)) {
+      return clone(DEFAULT_PANELS);
+    }
+
+    const saved = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8'));
+    const oldPanels = saved.panels || saved;
+    const result = {};
+
+    for (const [id, panel] of Object.entries(oldPanels)) {
+      if (!panel || typeof panel !== 'object') continue;
+
+      result[safeId(id)] = {
+        id: safeId(id),
+        title: panel.title || id,
+        description: panel.description || '',
+        color: panel.color || '7B2CBF',
+        image: panel.image || '',
+        buttons: Array.isArray(panel.buttons)
+          ? panel.buttons.map((button, index) => ({
+              id: safeId(button.id || button.label || `categoria-${index + 1}`),
+              label: String(button.label || 'Atendimento').slice(0, 80),
+              emoji: typeof button.emoji === 'string' ? button.emoji : '',
+              style: button.style || defaultStyle(button.id),
+            }))
+          : [],
+        channelId: panel.channelId || null,
+        messageId: panel.messageId || null,
+      };
+    }
+
+    for (const [id, panel] of Object.entries(DEFAULT_PANELS)) {
+      if (!result[id]) result[id] = clone(panel);
+    }
+
+    return result;
+  } catch (error) {
+    console.error('Erro ao carregar configurações:', error);
+    return clone(DEFAULT_PANELS);
+  }
+}
+
+function defaultStyle(id) {
+  if (id === 'comprar') return 'Success';
+  if (id === 'suporte-geral') return 'Primary';
+  if (id === 'denuncia') return 'Danger';
+  return 'Secondary';
+}
+
+let panels = loadConfig();
+
+function saveConfig() {
+  fs.mkdirSync(DATA_DIR, { recursive: true });
+  fs.writeFileSync(
+    CONFIG_FILE,
+    JSON.stringify({ panels }, null, 2)
+  );
+}
+
+function getPanel(id) {
+  return panels[safeId(id)] || null;
+}
+
+function getColor(panel) {
+  return /^[0-9A-Fa-f]{6}$/.test(panel.color)
+    ? parseInt(panel.color, 16)
+    : PURPLE;
+}
+
+function getButtonStyle(style) {
+  const styles = {
+    Primary: ButtonStyle.Primary,
+    Secondary: ButtonStyle.Secondary,
+    Success: ButtonStyle.Success,
+    Danger: ButtonStyle.Danger,
+  };
+
+  return styles[style] || ButtonStyle.Secondary;
+}
+
+function makePanel(panelId) {
+  const config = getPanel(panelId);
+  if (!config) throw new Error('Painel não encontrado.');
+
+  const embed = new EmbedBuilder()
+    .setColor(getColor(config))
+    .setTitle(config.title)
+    .setDescription(config.description)
+    .setFooter({ text: 'Nexus Blox Store' });
+
+  if (config.image) embed.setImage(config.image);
+
+  const buttons = config.buttons.slice(0, 25).map(item => {
+    const button = new ButtonBuilder()
+      .setCustomId(`nexus:ticket:${panelId}:${item.id}`)
+      .setLabel(item.label.slice(0, 80))
+      .setStyle(getButtonStyle(item.style));
+
+    if (item.emoji) button.setEmoji(item.emoji);
+    return button;
+  });
+
+  const rows = [];
+  for (let i = 0; i < buttons.length; i += 5) {
+    rows.push(
+      new ActionRowBuilder().addComponents(buttons.slice(i, i + 5))
+    );
+  }
+
+  return {
+    embeds: [embed],
+    components: rows,
+  };
+}
+
+async function updatePanelMessage(panelId) {
+  const config = getPanel(panelId);
+  if (!config || !config.channelId || !config.messageId) return false;
+
+  try {
+    const channel = await client.channels.fetch(config.channelId);
+    if (!channel || !channel.isTextBased()) return false;
+
+    const message = await channel.messages.fetch(config.messageId);
+    await message.edit(makePanel(panelId));
+    return true;
+  } catch (error) {
+    console.error(`Erro ao atualizar painel ${panelId}:`, error);
+    return false;
+  }
+}
+
+function isStaff(member) {
+  return Boolean(
+    member?.roles?.cache?.has(STAFF_ROLE_ID) ||
+    member?.permissions?.has(PermissionFlagsBits.Administrator)
+  );
+}
+
+function safeChannelPart(value) {
+  return safeId(value);
 }
 
 function ticketControls() {
@@ -230,7 +236,6 @@ function ticketControls() {
       .setLabel('Assumir')
       .setEmoji('🙋')
       .setStyle(ButtonStyle.Primary),
-
     new ButtonBuilder()
       .setCustomId('nexus:ticket:close')
       .setLabel('Fechar')
@@ -253,7 +258,6 @@ async function createTicket(interaction, ticketType) {
     name: `${safeChannelPart(ticketType.label)}-${safeChannelPart(interaction.user.username)}`,
     type: ChannelType.GuildText,
     parent: TICKET_CATEGORY_ID || undefined,
-
     permissionOverwrites: [
       {
         id: guild.id,
@@ -316,7 +320,6 @@ async function closeTicket(interaction) {
   if (LOG_CHANNEL_ID) {
     try {
       const logChannel = await client.channels.fetch(LOG_CHANNEL_ID);
-
       if (logChannel && logChannel.isTextBased()) {
         await logChannel.send(
           `🔒 O canal ${interaction.channel.name} foi fechado por ${interaction.user.tag}.`
@@ -332,20 +335,15 @@ async function closeTicket(interaction) {
   }, 5000);
 }
 
-// COMANDOS DO DISCORD
-
+// COMANDOS
 const commands = [
   new SlashCommandBuilder()
     .setName('painel')
     .setDescription('Publicar ou atualizar um painel')
     .addStringOption(option =>
-      option.setName('tipo')
-        .setDescription('Escolha qual painel publicar')
+      option.setName('id')
+        .setDescription('ID do painel, por exemplo: atendimento ou espadas')
         .setRequired(true)
-        .addChoices(
-          { name: 'Atendimento', value: 'atendimento' },
-          { name: 'Espadas', value: 'espadas' }
-        )
     )
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
 
@@ -353,14 +351,10 @@ const commands = [
     .setName('editarpainel')
     .setDescription('Editar título e descrição do painel de atendimento')
     .addStringOption(option =>
-      option.setName('titulo')
-        .setDescription('Novo título')
-        .setRequired(false)
+      option.setName('titulo').setDescription('Novo título').setRequired(false)
     )
     .addStringOption(option =>
-      option.setName('descricao')
-        .setDescription('Nova descrição')
-        .setRequired(false)
+      option.setName('descricao').setDescription('Nova descrição').setRequired(false)
     )
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
 
@@ -368,14 +362,10 @@ const commands = [
     .setName('imagem')
     .setDescription('Alterar ou remover a imagem do painel de atendimento')
     .addStringOption(option =>
-      option.setName('url')
-        .setDescription('Link da imagem')
-        .setRequired(false)
+      option.setName('url').setDescription('Link da imagem').setRequired(false)
     )
     .addBooleanOption(option =>
-      option.setName('remover')
-        .setDescription('Remover a imagem')
-        .setRequired(false)
+      option.setName('remover').setDescription('Remover a imagem').setRequired(false)
     )
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
 
@@ -383,68 +373,31 @@ const commands = [
     .setName('cor')
     .setDescription('Alterar a cor do painel de atendimento')
     .addStringOption(option =>
-      option.setName('hex')
-        .setDescription('Cor hexadecimal, exemplo: 7B2CBF')
-        .setRequired(true)
-    )
-    .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
-
-  new SlashCommandBuilder()
-    .setName('adicionarbotao')
-    .setDescription('Adicionar um botão ao painel de atendimento')
-    .addStringOption(option =>
-      option.setName('nome')
-        .setDescription('Nome do botão')
-        .setRequired(true)
-    )
-    .addStringOption(option =>
-      option.setName('emoji')
-        .setDescription('Emoji do botão')
-        .setRequired(false)
-    )
-    .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
-
-  new SlashCommandBuilder()
-    .setName('removerbotao')
-    .setDescription('Remover um botão do painel de atendimento')
-    .addStringOption(option =>
-      option.setName('nome')
-        .setDescription('Nome do botão')
-        .setRequired(true)
+      option.setName('hex').setDescription('Cor hexadecimal').setRequired(true)
     )
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
 ].map(command => command.toJSON());
 
 // DASHBOARD
-
 const app = express();
-
-app.use(express.json());
+app.use(express.json({ limit: '1mb' }));
 app.use(express.static(DASHBOARD_DIR));
 
 function protegerDashboard(req, res, next) {
-  const autenticacao = req.headers.authorization || '';
+  const auth = req.headers.authorization || '';
 
   if (!DASHBOARD_PASSWORD) {
-    return res.status(503).send(
-      'Senha do Dashboard não configurada na FadeHost.'
-    );
+    return res.status(503).send('Senha do Dashboard não configurada na FadeHost.');
   }
 
-  if (!autenticacao.startsWith('Basic ')) {
+  if (!auth.startsWith('Basic ')) {
     res.setHeader('WWW-Authenticate', 'Basic realm="Nexus Dashboard"');
     return res.status(401).send('Acesso restrito.');
   }
 
-  const dados = Buffer.from(
-    autenticacao.slice(6),
-    'base64'
-  ).toString('utf8');
-
+  const dados = Buffer.from(auth.slice(6), 'base64').toString('utf8');
   const separador = dados.indexOf(':');
-  const senha = separador >= 0
-    ? dados.slice(separador + 1)
-    : '';
+  const senha = separador >= 0 ? dados.slice(separador + 1) : '';
 
   if (senha !== DASHBOARD_PASSWORD) {
     res.setHeader('WWW-Authenticate', 'Basic realm="Nexus Dashboard"');
@@ -456,37 +409,77 @@ function protegerDashboard(req, res, next) {
 
 app.use('/api', protegerDashboard);
 
-app.get('/api/config', (req, res) => {
-  const panelKey = req.query.panel === 'espadas'
-    ? 'espadas'
-    : 'atendimento';
-
+// Lista todos os painéis
+app.get('/api/panels', (req, res) => {
   res.json({
-    ...getPanel(panelKey),
-    panel: panelKey,
+    panels: Object.values(panels),
   });
 });
 
-app.post('/api/config', async (req, res) => {
-  const panelKey = req.body.panel === 'espadas'
-    ? 'espadas'
-    : 'atendimento';
+// Cria um painel novo
+app.post('/api/panels', (req, res) => {
+  const title = String(req.body.title || '').trim();
+  const id = safeId(req.body.id || title);
 
-  const config = getPanel(panelKey);
+  if (!title) {
+    return res.status(400).json({ error: 'Informe o nome do painel.' });
+  }
+
+  if (panels[id]) {
+    return res.status(409).json({ error: 'Já existe um painel com esse ID.' });
+  }
+
+  panels[id] = {
+    id,
+    title: title.slice(0, 256),
+    description: String(req.body.description || 'Selecione uma opção abaixo.').slice(0, 4000),
+    color: '7B2CBF',
+    image: '',
+    buttons: [],
+    channelId: null,
+    messageId: null,
+  };
+
+  saveConfig();
+  res.json({ success: true, panel: panels[id] });
+});
+
+// Carrega um painel específico
+app.get('/api/config', (req, res) => {
+  const id = safeId(req.query.panel || 'atendimento');
+  const panel = getPanel(id);
+
+  if (!panel) {
+    return res.status(404).json({ error: 'Painel não encontrado.' });
+  }
+
+  res.json({
+    ...panel,
+    panels: Object.values(panels).map(item => ({
+      id: item.id,
+      title: item.title,
+    })),
+  });
+});
+
+// Salva edição de painel
+app.post('/api/config', async (req, res) => {
+  const id = safeId(req.body.panelId || req.body.panel || 'atendimento');
+  const config = getPanel(id);
+
+  if (!config) {
+    return res.status(404).json({ error: 'Painel não encontrado.' });
+  }
+
   const { title, description, color, image, buttons } = req.body;
 
-  if (typeof title === 'string') {
-    config.title = title.slice(0, 256);
-  }
+  if (typeof title === 'string') config.title = title.slice(0, 256);
+  if (typeof description === 'string') config.description = description.slice(0, 4000);
 
-  if (typeof description === 'string') {
-    config.description = description.slice(0, 4000);
-  }
-
-  if (
-    typeof color === 'string' &&
-    /^[0-9A-Fa-f]{6}$/.test(color)
-  ) {
+  if (typeof color === 'string') {
+    if (!/^[0-9A-Fa-f]{6}$/.test(color)) {
+      return res.status(400).json({ error: 'Cor inválida.' });
+    }
     config.color = color;
   }
 
@@ -496,104 +489,140 @@ app.post('/api/config', async (req, res) => {
     } else {
       try {
         const url = new URL(image);
-
-        if (!['http:', 'https:'].includes(url.protocol)) {
-          throw new Error();
-        }
-
+        if (!['http:', 'https:'].includes(url.protocol)) throw new Error();
         config.image = image;
       } catch {
-        return res.status(400).json({
-          error: 'Link de imagem inválido.',
-        });
+        return res.status(400).json({ error: 'Link de imagem inválido.' });
       }
     }
   }
 
   if (Array.isArray(buttons)) {
-    if (buttons.length > 5) {
-      return res.status(400).json({
-        error: 'O painel pode ter no máximo 5 botões.',
-      });
+    if (buttons.length > 25) {
+      return res.status(400).json({ error: 'O painel pode ter no máximo 25 categorias.' });
     }
 
     config.buttons = buttons
-      .filter(item =>
-        item &&
-        typeof item.id === 'string' &&
-        typeof item.label === 'string'
-      )
-      .map(item => ({
-        id: safeChannelPart(item.id),
-        label: item.label.slice(0, 80),
-        emoji: typeof item.emoji === 'string'
-          ? item.emoji.slice(0, 20)
-          : '',
+      .filter(item => item && typeof item.label === 'string' && item.label.trim())
+      .map((item, index) => ({
+        id: safeId(item.id || item.label || `categoria-${index + 1}`),
+        label: item.label.trim().slice(0, 80),
+        emoji: typeof item.emoji === 'string' ? item.emoji.slice(0, 20) : '',
+        style: ['Primary', 'Secondary', 'Success', 'Danger'].includes(item.style)
+          ? item.style
+          : defaultStyle(item.id),
       }));
   }
 
   try {
     saveConfig();
+    const updated = await updatePanelMessage(id);
 
-    const updated = await updatePanelMessage(panelKey);
-
-    return res.json({
+    res.json({
       success: true,
       panelUpdated: updated,
-      panel: panelKey,
+      panel: id,
     });
   } catch (error) {
     console.error('Erro ao salvar painel:', error);
-
-    return res.status(500).json({
-      error: 'Não foi possível salvar a configuração.',
-    });
+    res.status(500).json({ error: 'Não foi possível salvar a configuração.' });
   }
+});
+
+// Adiciona uma categoria/botão
+app.post('/api/panels/:id/buttons', (req, res) => {
+  const panel = getPanel(req.params.id);
+  if (!panel) return res.status(404).json({ error: 'Painel não encontrado.' });
+
+  if (panel.buttons.length >= 25) {
+    return res.status(400).json({ error: 'Limite de 25 categorias por painel.' });
+  }
+
+  const label = String(req.body.label || '').trim();
+  if (!label) return res.status(400).json({ error: 'Informe o nome da categoria.' });
+
+  const id = safeId(req.body.id || label);
+  if (panel.buttons.some(item => item.id === id)) {
+    return res.status(409).json({ error: 'Essa categoria já existe neste painel.' });
+  }
+
+  const style = ['Primary', 'Secondary', 'Success', 'Danger'].includes(req.body.style)
+    ? req.body.style
+    : 'Secondary';
+
+  panel.buttons.push({
+    id,
+    label: label.slice(0, 80),
+    emoji: String(req.body.emoji || '').slice(0, 20),
+    style,
+  });
+
+  saveConfig();
+  res.json({ success: true, panel });
+});
+
+// Remove uma categoria/botão
+app.delete('/api/panels/:id/buttons/:buttonId', (req, res) => {
+  const panel = getPanel(req.params.id);
+  if (!panel) return res.status(404).json({ error: 'Painel não encontrado.' });
+
+  const before = panel.buttons.length;
+  panel.buttons = panel.buttons.filter(item => item.id !== safeId(req.params.buttonId));
+
+  if (before === panel.buttons.length) {
+    return res.status(404).json({ error: 'Categoria não encontrada.' });
+  }
+
+  saveConfig();
+  res.json({ success: true, panel });
+});
+
+// Remove um painel
+app.delete('/api/panels/:id', (req, res) => {
+  const id = safeId(req.params.id);
+
+  if (id === 'atendimento' || id === 'espadas') {
+    return res.status(400).json({ error: 'Os painéis principais não podem ser removidos.' });
+  }
+
+  if (!panels[id]) return res.status(404).json({ error: 'Painel não encontrado.' });
+
+  delete panels[id];
+  saveConfig();
+  res.json({ success: true });
 });
 
 app.get('/health', (req, res) => {
   res.json({ status: 'online' });
 });
 
-app.listen(
-  process.env.PORT || 3000,
-  '0.0.0.0',
-  () => {
-    console.log('Dashboard Nexus iniciado!');
-  }
-);
+app.listen(process.env.PORT || 3000, '0.0.0.0', () => {
+  console.log('Dashboard Nexus iniciado!');
+});
 
 // BOT DISCORD
-
 client.once(Events.ClientReady, async () => {
   console.log(`Bot online: ${client.user.tag}`);
 
   try {
-    const rest = new REST({
-      version: '10',
-    }).setToken(DISCORD_TOKEN);
+    const rest = new REST({ version: '10' }).setToken(DISCORD_TOKEN);
 
     await rest.put(
       Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID),
       { body: commands }
     );
 
-    console.log('Todos os comandos foram registrados com sucesso.');
+    console.log('Comandos registrados com sucesso.');
   } catch (error) {
     console.error('Erro ao registrar comandos:', error);
   }
 });
 
 // INTERAÇÕES
-
 client.on(Events.InteractionCreate, async interaction => {
   try {
     if (interaction.isChatInputCommand()) {
-      if (
-        !interaction.memberPermissions?.has(
-          PermissionFlagsBits.ManageGuild
-        )
-      ) {
+      if (!interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild)) {
         return interaction.reply({
           content: 'Você não tem permissão para usar este comando.',
           ephemeral: true,
@@ -601,31 +630,30 @@ client.on(Events.InteractionCreate, async interaction => {
       }
 
       if (interaction.commandName === 'painel') {
-        const panelKey = interaction.options.getString('tipo');
+        const id = safeId(interaction.options.getString('id'));
+        const config = getPanel(id);
+
+        if (!config) {
+          return interaction.reply({
+            content: 'Não encontrei esse painel. Confira o ID no Dashboard.',
+            ephemeral: true,
+          });
+        }
 
         await interaction.deferReply({ ephemeral: true });
 
-        const updated = await updatePanelMessage(panelKey);
+        const updated = await updatePanelMessage(id);
 
         if (updated) {
-          return interaction.editReply(
-            `Painel de ${panelKey} atualizado!`
-          );
+          return interaction.editReply(`Painel **${config.title}** atualizado!`);
         }
 
-        const message = await interaction.channel.send(
-          makePanel(panelKey)
-        );
-
-        const config = getPanel(panelKey);
+        const message = await interaction.channel.send(makePanel(id));
         config.channelId = message.channel.id;
         config.messageId = message.id;
-
         saveConfig();
 
-        return interaction.editReply(
-          `Painel de ${panelKey} publicado e salvo!`
-        );
+        return interaction.editReply(`Painel **${config.title}** publicado e salvo!`);
       }
 
       if (interaction.commandName === 'editarpainel') {
@@ -637,13 +665,12 @@ client.on(Events.InteractionCreate, async interaction => {
         if (description !== null) config.description = description;
 
         saveConfig();
-
         const updated = await updatePanelMessage('atendimento');
 
         return interaction.reply({
           content: updated
-            ? 'Título e descrição do atendimento atualizados!'
-            : 'Configuração salva. Use /painel e escolha Atendimento.',
+            ? 'Painel de atendimento atualizado!'
+            : 'Configuração salva. Use /painel id:atendimento para publicar.',
           ephemeral: true,
         });
       }
@@ -658,15 +685,11 @@ client.on(Events.InteractionCreate, async interaction => {
         } else if (url) {
           try {
             const parsed = new URL(url);
-
-            if (!['http:', 'https:'].includes(parsed.protocol)) {
-              throw new Error();
-            }
-
+            if (!['http:', 'https:'].includes(parsed.protocol)) throw new Error();
             config.image = url;
           } catch {
             return interaction.reply({
-              content: 'Envie um link de imagem válido começando com https:// ou http://.',
+              content: 'Envie um link válido começando com https:// ou http://.',
               ephemeral: true,
             });
           }
@@ -678,13 +701,10 @@ client.on(Events.InteractionCreate, async interaction => {
         }
 
         saveConfig();
-
         const updated = await updatePanelMessage('atendimento');
 
         return interaction.reply({
-          content: updated
-            ? 'Imagem do atendimento atualizada!'
-            : 'Imagem salva. Use /painel e escolha Atendimento.',
+          content: updated ? 'Imagem atualizada!' : 'Imagem salva. Publique o painel novamente.',
           ephemeral: true,
         });
       }
@@ -695,94 +715,17 @@ client.on(Events.InteractionCreate, async interaction => {
 
         if (!/^[0-9A-Fa-f]{6}$/.test(hex)) {
           return interaction.reply({
-            content: 'Cor inválida. Use seis caracteres, por exemplo: 7B2CBF.',
+            content: 'Cor inválida. Use seis caracteres, exemplo: 7B2CBF.',
             ephemeral: true,
           });
         }
 
         config.color = hex;
         saveConfig();
-
         const updated = await updatePanelMessage('atendimento');
 
         return interaction.reply({
-          content: updated
-            ? 'Cor do atendimento atualizada!'
-            : 'Cor salva. Use /painel e escolha Atendimento.',
-          ephemeral: true,
-        });
-      }
-
-      if (interaction.commandName === 'adicionarbotao') {
-        const config = getPanel('atendimento');
-
-        if (config.buttons.length >= 5) {
-          return interaction.reply({
-            content: 'O painel já tem 5 botões. Remova um antes de adicionar outro.',
-            ephemeral: true,
-          });
-        }
-
-        const label = interaction.options.getString('nome').trim();
-        const emoji = interaction.options.getString('emoji') || '🎫';
-        const id = safeChannelPart(label);
-
-        if (
-          !label ||
-          config.buttons.some(button => button.id === id)
-        ) {
-          return interaction.reply({
-            content: 'Nome vazio ou botão com esse nome já existe.',
-            ephemeral: true,
-          });
-        }
-
-        config.buttons.push({
-          id,
-          label: label.slice(0, 80),
-          emoji,
-        });
-
-        saveConfig();
-
-        const updated = await updatePanelMessage('atendimento');
-
-        return interaction.reply({
-          content: updated
-            ? 'Botão adicionado ao painel de atendimento!'
-            : 'Botão salvo. Use /painel e escolha Atendimento.',
-          ephemeral: true,
-        });
-      }
-
-      if (interaction.commandName === 'removerbotao') {
-        const config = getPanel('atendimento');
-        const name = safeChannelPart(
-          interaction.options.getString('nome')
-        );
-
-        const before = config.buttons.length;
-
-        config.buttons = config.buttons.filter(button =>
-          button.id !== name &&
-          safeChannelPart(button.label) !== name
-        );
-
-        if (config.buttons.length === before) {
-          return interaction.reply({
-            content: 'Não encontrei esse botão. Confira o nome.',
-            ephemeral: true,
-          });
-        }
-
-        saveConfig();
-
-        const updated = await updatePanelMessage('atendimento');
-
-        return interaction.reply({
-          content: updated
-            ? 'Botão removido!'
-            : 'Remoção salva. Use /painel e escolha Atendimento.',
+          content: updated ? 'Cor atualizada!' : 'Cor salva. Publique o painel novamente.',
           ephemeral: true,
         });
       }
@@ -810,20 +753,14 @@ client.on(Events.InteractionCreate, async interaction => {
 
       if (customId.startsWith('nexus:ticket:')) {
         const parts = customId.split(':');
-        const panelKey = parts[2];
-        const id = parts[3];
+        const panelId = parts[2];
+        const buttonId = parts[3];
 
-        if (!['atendimento', 'espadas'].includes(panelKey)) {
-          return;
-        }
+        const panel = getPanel(panelId);
+        if (!panel) return;
 
-        const ticketType = getPanel(panelKey).buttons.find(
-          button => button.id === id
-        );
-
-        if (ticketType) {
-          return createTicket(interaction, ticketType);
-        }
+        const ticketType = panel.buttons.find(item => item.id === buttonId);
+        if (ticketType) return createTicket(interaction, ticketType);
       }
     }
   } catch (error) {
@@ -846,12 +783,8 @@ client.on(Events.InteractionCreate, async interaction => {
 });
 
 // INICIAR BOT
-
 if (!DISCORD_TOKEN) {
-  console.error(
-    'ERRO: DISCORD_TOKEN não foi configurado na hospedagem.'
-  );
-
+  console.error('ERRO: DISCORD_TOKEN não foi configurado na hospedagem.');
   process.exit(1);
 }
 
