@@ -132,7 +132,7 @@ function makePanel() {
       : [],
   };
 }
-
+async function updatePanelMessage() {
   try {
     const channel = await client.channels.fetch(
       config.channelId
