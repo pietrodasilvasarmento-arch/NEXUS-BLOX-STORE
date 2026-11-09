@@ -10,6 +10,7 @@ const {
   ButtonStyle,
   ChannelType,
   Client,
+  GatewayIntentBits
   EmbedBuilder,
   Events,
   PermissionFlagsBits,
