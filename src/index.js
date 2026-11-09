@@ -121,11 +121,7 @@ function makePanel() {
 
   return button;
 });
-    new ButtonBuilder()
-      .setCustomId(`nexus:ticket:${item.id}`)
-      .setLabel(item.label)
-      .setStyle(ButtonStyle.Secondary)
-      .setEmoji(item.emoji || '🎫')
+    
   );
 
   return {
