@@ -105,14 +105,18 @@ function makePanel() {
   }
 
   const buttons = config.buttons.slice(0, 5).map(item => {
+    const styles = {
+      comprar: ButtonStyle.Success,
+      'suporte-geral': ButtonStyle.Primary,
+      denuncia: ButtonStyle.Danger,
+    };
+
+    const style = styles[item.id] || ButtonStyle.Secondary;
+
     const button = new ButtonBuilder()
       .setCustomId(`nexus:ticket:${item.id}`)
       .setLabel(item.label)
-      .setStyle(
-        item.id === 'comprar'
-          ? ButtonStyle.Success
-          : ButtonStyle.Secondary
-      );
+      .setStyle(style);
 
     if (item.id !== 'comprar' && item.emoji) {
       button.setEmoji(item.emoji);
@@ -128,11 +132,6 @@ function makePanel() {
       : [],
   };
 }
-
-async function updatePanelMessage() {
-  if (!config.channelId || !config.messageId) {
-    return false;
-  }
 
   try {
     const channel = await client.channels.fetch(
