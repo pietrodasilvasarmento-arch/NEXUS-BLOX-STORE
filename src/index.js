@@ -313,7 +313,42 @@ function protegerDashboard(req, res, next) {
 
 app.use(protegerDashboard);
 
-app.use(express.static(path.join(__dirname, '..', 'dashboard')));
+app.get('/api/config', (req, res) => {
+  res.json(config);
+});
+
+app.post('/api/config', async (req, res) => {
+  const { title, description, color, image } = req.body;
+
+  if (typeof title === 'string') config.title = title.slice(0, 256);
+  if (typeof description === 'string') config.description = description.slice(0, 4000);
+
+  if (typeof color === 'string' && /^[0-9A-Fa-f]{6}$/.test(color)) {
+    config.color = color;
+  }
+
+  if (typeof image === 'string') {
+    if (image === '') {
+      config.image = '';
+    } else {
+      try {
+        const url = new URL(image);
+        if (!['http:', 'https:'].includes(url.protocol)) throw new Error();
+        config.image = image;
+      } catch {
+        return res.status(400).json({ error: 'Link de imagem inválido.' });
+      }
+    }
+  }
+
+  saveConfig();
+  const updated = await updatePanelMessage();
+
+  res.json({
+    success: true,
+    panelUpdated: updated
+  });
+});
 
 app.listen(process.env.PORT || 3000, '0.0.0.0', () => {
   console.log('Dashboard Nexus iniciado!');
