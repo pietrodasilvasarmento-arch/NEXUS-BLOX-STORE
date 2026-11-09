@@ -280,8 +280,43 @@ const commands = [
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
 ].map(command => command.toJSON());
 
-const client = new Client({
-  intents: ['Guilds'],
+const app = express();
+
+app.use(express.json());
+
+function protegerDashboard(req, res, next) {
+  const autenticacao = req.headers.authorization || '';
+
+  if (!process.env.DASHBOARD_PASSWORD) {
+    return res.status(503).send('Senha do Dashboard não configurada.');
+  }
+
+  if (!autenticacao.startsWith('Basic ')) {
+    res.setHeader('WWW-Authenticate', 'Basic realm="Nexus Dashboard"');
+    return res.status(401).send('Acesso restrito.');
+  }
+
+  const dados = Buffer.from(
+    autenticacao.slice(6),
+    'base64'
+  ).toString('utf8');
+
+  const senha = dados.slice(dados.indexOf(':') + 1);
+
+  if (senha !== process.env.DASHBOARD_PASSWORD) {
+    res.setHeader('WWW-Authenticate', 'Basic realm="Nexus Dashboard"');
+    return res.status(401).send('Senha incorreta.');
+  }
+
+  next();
+}
+
+app.use(protegerDashboard);
+
+app.use(express.static(path.join(__dirname, '..', 'dashboard')));
+
+app.listen(process.env.PORT || 3000, '0.0.0.0', () => {
+  console.log('Dashboard Nexus iniciado!');
 });
 
 client.once(Events.ClientReady, async () => {
