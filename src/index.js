@@ -32,6 +32,7 @@ const {
 
 const CLIENT_ID = '1567710436038541352';
 const GUILD_ID = '1565709224393187388';
+const OWNER_ID = '1142628108445437963';
 const STAFF_ROLE_ID = '1567191306977943712';
 const PURPLE = 0x7B2CBF;
 
@@ -622,9 +623,11 @@ client.once(Events.ClientReady, async () => {
 client.on(Events.InteractionCreate, async interaction => {
   try {
     if (interaction.isChatInputCommand()) {
-      if (!interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild)) {
+
+      // PROTEÇÃO DO FUNDADOR
+      if (interaction.user.id !== OWNER_ID) {
         return interaction.reply({
-          content: 'Você não tem permissão para usar este comando.',
+          content: '❌ Apenas o Fundador pode usar os comandos do SPACE NEXUS!',
           ephemeral: true,
         });
       }
