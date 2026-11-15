@@ -625,12 +625,15 @@ client.on(Events.InteractionCreate, async interaction => {
     if (interaction.isChatInputCommand()) {
 
       // PROTEÇÃO DO FUNDADOR
-      if (interaction.user.id !== OWNER_ID) {
-        return interaction.reply({
-          content: '❌ Apenas o Fundador pode usar os comandos do SPACE NEXUS!',
-          ephemeral: true,
-        });
-      }
+console.log('ID que executou:', interaction.user.id);
+console.log('ID configurado:', OWNER_ID);
+
+if (String(interaction.user.id) !== String(OWNER_ID)) {
+  return interaction.reply({
+    content: '❌ Apenas o Fundador pode usar os comandos do SPACE NEXUS!',
+    ephemeral: true,
+  });
+}
 
       if (interaction.commandName === 'painel') {
         const id = safeId(interaction.options.getString('id'));
