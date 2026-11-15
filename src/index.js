@@ -32,7 +32,12 @@ const {
 
 const CLIENT_ID = '1567710436038541352';
 const GUILD_ID = '1565709224393187388';
-const OWNER_ID = '1210953337709535344';
+
+// FUNDADORES AUTORIZADOS
+const OWNER_IDS = [
+  '1210953337709535344',
+];
+
 const STAFF_ROLE_ID = '1567191306977943712';
 const PURPLE = 0x7B2CBF;
 
@@ -625,15 +630,15 @@ client.on(Events.InteractionCreate, async interaction => {
     if (interaction.isChatInputCommand()) {
 
       // PROTEÇÃO DO FUNDADOR
-console.log('ID que executou:', interaction.user.id);
-console.log('ID configurado:', OWNER_ID);
+      console.log('ID que executou:', interaction.user.id);
+      console.log('Fundadores autorizados:', OWNER_IDS);
 
-if (String(interaction.user.id) !== String(OWNER_ID)) {
-  return interaction.reply({
-    content: '❌ Apenas o Fundador pode usar os comandos do SPACE NEXUS!',
-    ephemeral: true,
-  });
-}
+      if (!OWNER_IDS.includes(String(interaction.user.id))) {
+        return interaction.reply({
+          content: '❌ Apenas o Fundador pode usar os comandos do SPACE NEXUS!',
+          ephemeral: true,
+        });
+      }
 
       if (interaction.commandName === 'painel') {
         const id = safeId(interaction.options.getString('id'));
