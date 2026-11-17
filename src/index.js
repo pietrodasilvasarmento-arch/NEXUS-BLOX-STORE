@@ -1,11 +1,14 @@
+
 require('dotenv').config();
 
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 const express = require('express');
 
 const {
   ActionRowBuilder,
+  AttachmentBuilder,
   ButtonBuilder,
   ButtonStyle,
   ChannelType,
@@ -13,11 +16,16 @@ const {
   GatewayIntentBits,
   EmbedBuilder,
   Events,
+  ModalBuilder,
+  TextInputBuilder,
+  TextInputStyle,
   PermissionFlagsBits,
   REST,
   Routes,
   SlashCommandBuilder,
 } = require('discord.js');
+
+const { createCaptcha } = require('captcha-canvas');
 
 const client = new Client({
   intents: [GatewayIntentBits.Guilds],
@@ -39,7 +47,15 @@ const OWNER_IDS = [
 ];
 
 const STAFF_ROLE_ID = '1567191306977943712';
+
+// CARGO RECEBIDO APÓS A VERIFICAÇÃO
+const VERIFIED_ROLE_ID = '1572281630238707742';
+
 const PURPLE = 0x7B2CBF;
+
+// SESSÕES DO CAPTCHA
+const captchaSessions = new Map();
+const CAPTCHA_EXPIRATION = 5 * 60 * 1000;
 
 const DATA_DIR = path.join(__dirname, '..', 'data');
 const CONFIG_FILE = path.join(DATA_DIR, 'panel-config.json');
@@ -341,6 +357,60 @@ async function closeTicket(interaction) {
   }, 5000);
 }
 
+// GERAR CAPTCHA
+async function generateCaptchaForUser(interaction) {
+  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+
+  const answer = Array.from({ length: 6 }, () =>
+    alphabet[crypto.randomInt(0, alphabet.length)]
+  ).join('');
+
+  const { image } = createCaptcha(320, 120, {
+    captcha: {
+      text: answer,
+      size: 48,
+      color: '#7B2CBF',
+    },
+    decoy: {
+      total: 25,
+      opacity: 0.3,
+    },
+    trace: {
+      color: '#B58AE6',
+      size: 3,
+      opacity: 0.5,
+    },
+  });
+
+  const buffer = await image;
+
+  captchaSessions.set(
+    `${interaction.guildId}:${interaction.user.id}`,
+    {
+      answer,
+      expiresAt: Date.now() + CAPTCHA_EXPIRATION,
+    }
+  );
+
+  const attachment = new AttachmentBuilder(buffer, {
+    name: 'nexus-captcha.png',
+  });
+
+  const row = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId('nexus:captcha:answer')
+      .setLabel('Digitar código')
+      .setEmoji('⌨️')
+      .setStyle(ButtonStyle.Success)
+  );
+
+  return interaction.editReply({
+    content: '🔐 **Resolva o CAPTCHA para receber seu cargo de verificado.**\n\nObserve a imagem abaixo e clique em **Digitar código**.',
+    files: [attachment],
+    components: [row],
+  });
+}
+
 // COMANDOS
 const commands = [
   new SlashCommandBuilder()
@@ -381,6 +451,12 @@ const commands = [
     .addStringOption(option =>
       option.setName('hex').setDescription('Cor hexadecimal').setRequired(true)
     )
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
+
+  // NOVO COMANDO DE VERIFICAÇÃO
+  new SlashCommandBuilder()
+    .setName('verificacaopainel')
+    .setDescription('Publicar o painel de verificação CAPTCHA')
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
 ].map(command => command.toJSON());
 
@@ -627,6 +703,74 @@ client.once(Events.ClientReady, async () => {
 // INTERAÇÕES
 client.on(Events.InteractionCreate, async interaction => {
   try {
+    // ENVIO DO FORMULÁRIO CAPTCHA
+    if (
+      interaction.isModalSubmit() &&
+      interaction.customId === 'nexus:captcha:modal'
+    ) {
+      const sessionKey = `${interaction.guildId}:${interaction.user.id}`;
+      const session = captchaSessions.get(sessionKey);
+
+      if (!session || Date.now() > session.expiresAt) {
+        captchaSessions.delete(sessionKey);
+
+        return interaction.reply({
+          content: '⌛ Seu CAPTCHA expirou. Clique no botão de verificação e tente novamente.',
+          ephemeral: true,
+        });
+      }
+
+      const answer = interaction.fields
+        .getTextInputValue('captcha_answer')
+        .trim()
+        .toUpperCase();
+
+      if (answer !== session.answer) {
+        return interaction.reply({
+          content: '❌ Código incorreto! Volte ao painel e tente gerar outro CAPTCHA.',
+          ephemeral: true,
+        });
+      }
+
+      const guild = interaction.guild;
+
+      if (!guild) {
+        return interaction.reply({
+          content: 'Não foi possível identificar o servidor.',
+          ephemeral: true,
+        });
+      }
+
+      const role = await guild.roles.fetch(VERIFIED_ROLE_ID);
+
+      if (!role) {
+        return interaction.reply({
+          content: '❌ Não encontrei o cargo de verificado. Confira o ID configurado no bot.',
+          ephemeral: true,
+        });
+      }
+
+      const member = await guild.members.fetch(interaction.user.id);
+
+      if (member.roles.cache.has(VERIFIED_ROLE_ID)) {
+        captchaSessions.delete(sessionKey);
+
+        return interaction.reply({
+          content: '✅ Você já possui o cargo de verificado!',
+          ephemeral: true,
+        });
+      }
+
+      await member.roles.add(role, 'CAPTCHA concluído com sucesso');
+
+      captchaSessions.delete(sessionKey);
+
+      return interaction.reply({
+        content: '✅ **Verificação concluída com sucesso!** Você recebeu seu cargo de verificado.',
+        ephemeral: true,
+      });
+    }
+
     if (interaction.isChatInputCommand()) {
 
       // PROTEÇÃO DO FUNDADOR
@@ -636,6 +780,36 @@ client.on(Events.InteractionCreate, async interaction => {
       if (!OWNER_IDS.includes(String(interaction.user.id))) {
         return interaction.reply({
           content: '❌ Apenas o Fundador pode usar os comandos do SPACE NEXUS!',
+          ephemeral: true,
+        });
+      }
+
+      if (interaction.commandName === 'verificacaopainel') {
+        const embed = new EmbedBuilder()
+          .setColor(PURPLE)
+          .setTitle('🔐 | VERIFICAÇÃO NEXUS')
+          .setDescription(
+            'Seja bem-vindo à **Nexus Blox Store**!\n\n' +
+            'Para liberar seu acesso, clique no botão abaixo e resolva o CAPTCHA.\n\n' +
+            'Após acertar o código, você receberá automaticamente seu cargo de verificado.'
+          )
+          .setFooter({ text: 'Nexus Blox Store • Sistema de Verificação' });
+
+        const row = new ActionRowBuilder().addComponents(
+          new ButtonBuilder()
+            .setCustomId('nexus:captcha:start')
+            .setLabel('Verificar agora')
+            .setEmoji('✅')
+            .setStyle(ButtonStyle.Success)
+        );
+
+        await interaction.channel.send({
+          embeds: [embed],
+          components: [row],
+        });
+
+        return interaction.reply({
+          content: '✅ Painel de verificação publicado com sucesso!',
           ephemeral: true,
         });
       }
@@ -744,6 +918,62 @@ client.on(Events.InteractionCreate, async interaction => {
 
     if (interaction.isButton()) {
       const customId = interaction.customId;
+
+      // INICIAR CAPTCHA
+      if (customId === 'nexus:captcha:start') {
+        if (!interaction.guild) {
+          return interaction.reply({
+            content: 'Este botão só funciona dentro do servidor.',
+            ephemeral: true,
+          });
+        }
+
+        const member = await interaction.guild.members.fetch(interaction.user.id);
+
+        if (member.roles.cache.has(VERIFIED_ROLE_ID)) {
+          return interaction.reply({
+            content: '✅ Você já está verificado!',
+            ephemeral: true,
+          });
+        }
+
+        await interaction.deferReply({ ephemeral: true });
+        return generateCaptchaForUser(interaction);
+      }
+
+      // ABRIR FORMULÁRIO PARA DIGITAR O CAPTCHA
+      if (customId === 'nexus:captcha:answer') {
+        const sessionKey = `${interaction.guildId}:${interaction.user.id}`;
+        const session = captchaSessions.get(sessionKey);
+
+        if (!session || Date.now() > session.expiresAt) {
+          captchaSessions.delete(sessionKey);
+
+          return interaction.reply({
+            content: '⌛ Seu CAPTCHA expirou. Clique em Verificar agora para gerar outro.',
+            ephemeral: true,
+          });
+        }
+
+        const modal = new ModalBuilder()
+          .setCustomId('nexus:captcha:modal')
+          .setTitle('Verificação Nexus');
+
+        const input = new TextInputBuilder()
+          .setCustomId('captcha_answer')
+          .setLabel('Digite os 6 caracteres da imagem')
+          .setPlaceholder('Exemplo: A7K9MP')
+          .setStyle(TextInputStyle.Short)
+          .setMinLength(6)
+          .setMaxLength(6)
+          .setRequired(true);
+
+        modal.addComponents(
+          new ActionRowBuilder().addComponents(input)
+        );
+
+        return interaction.showModal(modal);
+      }
 
       if (customId === 'nexus:ticket:claim') {
         if (!isStaff(interaction.member)) {
