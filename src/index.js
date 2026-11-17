@@ -252,7 +252,80 @@ function ticketControls() {
   );
 }
 
+
 async function createTicket(interaction, ticketType) {
+  const guild = interaction.guild;
+
+  if (!guild) {
+    return interaction.reply({
+      content: 'Este botão só funciona dentro do servidor.',
+      ephemeral: true,
+    });
+  }
+
+  // RESPONDE IMEDIATAMENTE AO DISCORD
+  await interaction.deferReply({ ephemeral: true });
+
+  try {
+    const channel = await guild.channels.create({
+      name: `${safeChannelPart(ticketType.label)}-${safeChannelPart(interaction.user.username)}`,
+      type: ChannelType.GuildText,
+      parent: TICKET_CATEGORY_ID || undefined,
+      permissionOverwrites: [
+        {
+          id: guild.id,
+          deny: [PermissionFlagsBits.ViewChannel],
+        },
+        {
+          id: interaction.user.id,
+          allow: [
+            PermissionFlagsBits.ViewChannel,
+            PermissionFlagsBits.SendMessages,
+            PermissionFlagsBits.ReadMessageHistory,
+          ],
+        },
+        {
+          id: STAFF_ROLE_ID,
+          allow: [
+            PermissionFlagsBits.ViewChannel,
+            PermissionFlagsBits.SendMessages,
+            PermissionFlagsBits.ReadMessageHistory,
+          ],
+        },
+        {
+          id: client.user.id,
+          allow: [
+            PermissionFlagsBits.ViewChannel,
+            PermissionFlagsBits.SendMessages,
+            PermissionFlagsBits.ReadMessageHistory,
+            PermissionFlagsBits.ManageChannels,
+          ],
+        },
+      ],
+    });
+
+    await channel.send({
+      content:
+        `${interaction.user} ${ticketType.emoji || '🎫'} ` +
+        `Atendimento de **${ticketType.label}** aberto!\n` +
+        'A equipe irá atender você.',
+      components: [ticketControls()],
+    });
+
+    // EDITA A RESPOSTA JÁ CONFIRMADA
+    await interaction.editReply({
+      content: `✅ Seu atendimento foi criado: ${channel}`,
+    });
+
+  } catch (error) {
+    console.error('Erro ao criar ticket:', error);
+
+    await interaction.editReply({
+      content: '❌ Não foi possível criar seu atendimento. Avise a equipe.',
+    }).catch(() => {});
+  }
+}
+
   const guild = interaction.guild;
 
   if (!guild) {
