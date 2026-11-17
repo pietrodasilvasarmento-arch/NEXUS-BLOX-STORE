@@ -15,5 +15,7 @@
     "discord.js": "^14.19.3",
     "dotenv": "^16.4.7",
     "express": "^4.21.2"
+    "captcha-canvas": "^3.4.0",
+    "skia-canvas": "^2.0.2"
   }
 }
