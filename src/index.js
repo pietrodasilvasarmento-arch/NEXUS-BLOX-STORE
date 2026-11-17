@@ -38,7 +38,14 @@ const OWNER_IDS = [
   '1210953337709535344',
 ];
 
-const STAFF_ROLE_ID = '1567191306977943712';
+// CARGOS AUTORIZADOS PARA OS TICKETS
+const STAFF_ROLE_IDS = [
+  '1571350802470142062', // Staff Aprendiz
+  '1569376132929814678', // Admin
+  '1571350550094680198', // Staff Oficial
+  '1571350238986379294', // Chefe Staff
+  '1567658154831909044', // Middleman
+];
 
 const PURPLE = 0x7B2CBF;
 
@@ -227,10 +234,11 @@ async function updatePanelMessage(panelId) {
   }
 }
 
+// VERIFICA SE O MEMBRO É STAFF
 function isStaff(member) {
   return Boolean(
-    member?.roles?.cache?.has(STAFF_ROLE_ID) ||
-    member?.permissions?.has(PermissionFlagsBits.Administrator)
+    member?.permissions?.has(PermissionFlagsBits.Administrator) ||
+    STAFF_ROLE_IDS.some(roleId => member?.roles?.cache?.has(roleId))
   );
 }
 
@@ -238,13 +246,15 @@ function safeChannelPart(value) {
   return safeId(value);
 }
 
-function ticketControls() {
+// BOTÕES DOS TICKETS
+function ticketControls(assumed = false) {
   return new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId('nexus:ticket:claim')
-      .setLabel('Assumir')
+      .setLabel(assumed ? 'Já assumido' : 'Assumir')
       .setEmoji('🙋')
-      .setStyle(ButtonStyle.Primary),
+      .setStyle(ButtonStyle.Primary)
+      .setDisabled(assumed),
 
     new ButtonBuilder()
       .setCustomId('nexus:ticket:close')
@@ -254,7 +264,7 @@ function ticketControls() {
   );
 }
 
-// CRIAÇÃO DE TICKET - CORRIGIDA
+// CRIAÇÃO DE TICKET
 async function createTicket(interaction, ticketType) {
   if (!interaction.guild) {
     return interaction.reply({
@@ -268,7 +278,6 @@ async function createTicket(interaction, ticketType) {
   try {
     const guild = interaction.guild;
 
-    // Verifica se o bot tem permissão para criar canais
     const botMember = guild.members.me ||
       await guild.members.fetch(client.user.id);
 
@@ -278,38 +287,21 @@ async function createTicket(interaction, ticketType) {
       );
     }
 
-    // Verifica a categoria configurada
     let category = null;
 
     if (TICKET_CATEGORY_ID) {
       category = await guild.channels.fetch(TICKET_CATEGORY_ID);
 
       if (!category) {
-        throw new Error(
-          'A categoria configurada não foi encontrada.'
-        );
+        throw new Error('A categoria configurada não foi encontrada.');
       }
 
       if (category.type !== ChannelType.GuildCategory) {
-        throw new Error(
-          'O ID configurado não pertence a uma categoria.'
-        );
+        throw new Error('O ID configurado não pertence a uma categoria.');
       }
     }
 
-    // Verifica o cargo da equipe
-    let staffRole = null;
-
-    if (STAFF_ROLE_ID) {
-      staffRole = await guild.roles.fetch(STAFF_ROLE_ID);
-
-      if (!staffRole) {
-        console.warn(
-          'AVISO: cargo da equipe não encontrado. O ticket será criado sem essa permissão.'
-        );
-      }
-    }
-
+    // PERMISSÕES DOS TICKETS
     const permissionOverwrites = [
       {
         id: guild.id,
@@ -334,16 +326,22 @@ async function createTicket(interaction, ticketType) {
       },
     ];
 
-    // Adiciona a equipe somente se o cargo existir
-    if (staffRole) {
-      permissionOverwrites.push({
-        id: staffRole.id,
-        allow: [
-          PermissionFlagsBits.ViewChannel,
-          PermissionFlagsBits.SendMessages,
-          PermissionFlagsBits.ReadMessageHistory,
-        ],
-      });
+    // LIBERA OS CINCO CARGOS
+    for (const roleId of STAFF_ROLE_IDS) {
+      const role = await guild.roles.fetch(roleId).catch(() => null);
+
+      if (role) {
+        permissionOverwrites.push({
+          id: role.id,
+          allow: [
+            PermissionFlagsBits.ViewChannel,
+            PermissionFlagsBits.SendMessages,
+            PermissionFlagsBits.ReadMessageHistory,
+          ],
+        });
+      } else {
+        console.warn(`Cargo não encontrado: ${roleId}`);
+      }
     }
 
     const channel = await guild.channels.create({
@@ -385,10 +383,55 @@ async function createTicket(interaction, ticketType) {
   }
 }
 
+// ASSUMIR TICKET
+async function claimTicket(interaction) {
+  if (!isStaff(interaction.member)) {
+    return interaction.reply({
+      content: '❌ Somente os cargos autorizados podem assumir tickets.',
+      ephemeral: true,
+    });
+  }
+
+  const channel = interaction.channel;
+
+  if (!channel || !channel.isTextBased()) {
+    return interaction.reply({
+      content: 'Canal inválido.',
+      ephemeral: true,
+    });
+  }
+
+  // Verifica se já existe um responsável
+  if (channel.topic && channel.topic.startsWith('ticket-assumido:')) {
+    return interaction.reply({
+      content: '❌ Este ticket já foi assumido por outro membro da equipe.',
+      ephemeral: true,
+    });
+  }
+
+  // Registra o responsável no tópico do canal
+  await channel.setTopic(
+    `ticket-assumido:${interaction.user.id}`
+  );
+
+  // Atualiza o botão da mensagem
+  await interaction.update({
+    content:
+      `${interaction.message.content}\n\n` +
+      `🙋 **Responsável pelo atendimento:** ${interaction.user}`,
+    components: [ticketControls(true)],
+  });
+  
+  console.log(
+    `Ticket ${channel.name} assumido por ${interaction.user.tag}`
+  );
+}
+
+// FECHAR TICKET
 async function closeTicket(interaction) {
   if (!isStaff(interaction.member)) {
     return interaction.reply({
-      content: 'Somente a equipe pode fechar este atendimento.',
+      content: '❌ Somente os cargos autorizados podem fechar este atendimento.',
       ephemeral: true,
     });
   }
@@ -979,16 +1022,7 @@ client.on(Events.InteractionCreate, async interaction => {
       const customId = interaction.customId;
 
       if (customId === 'nexus:ticket:claim') {
-        if (!isStaff(interaction.member)) {
-          return interaction.reply({
-            content: 'Somente a equipe pode assumir atendimentos.',
-            ephemeral: true,
-          });
-        }
-
-        return interaction.reply({
-          content: `🙋 Atendimento assumido por ${interaction.user}.`,
-        });
+        return claimTicket(interaction);
       }
 
       if (customId === 'nexus:ticket:close') {
