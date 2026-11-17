@@ -1,3 +1,4 @@
+
 require('dotenv').config();
 
 const fs = require('fs');
@@ -253,7 +254,7 @@ function ticketControls() {
   );
 }
 
-// CRIAÇÃO DE TICKET
+// CRIAÇÃO DE TICKET - CORRIGIDA
 async function createTicket(interaction, ticketType) {
   if (!interaction.guild) {
     return interaction.reply({
@@ -267,42 +268,90 @@ async function createTicket(interaction, ticketType) {
   try {
     const guild = interaction.guild;
 
+    // Verifica se o bot tem permissão para criar canais
+    const botMember = guild.members.me ||
+      await guild.members.fetch(client.user.id);
+
+    if (!botMember.permissions.has(PermissionFlagsBits.ManageChannels)) {
+      throw new Error(
+        'O bot não possui a permissão Gerenciar Canais.'
+      );
+    }
+
+    // Verifica a categoria configurada
+    let category = null;
+
+    if (TICKET_CATEGORY_ID) {
+      category = await guild.channels.fetch(TICKET_CATEGORY_ID);
+
+      if (!category) {
+        throw new Error(
+          'A categoria configurada não foi encontrada.'
+        );
+      }
+
+      if (category.type !== ChannelType.GuildCategory) {
+        throw new Error(
+          'O ID configurado não pertence a uma categoria.'
+        );
+      }
+    }
+
+    // Verifica o cargo da equipe
+    let staffRole = null;
+
+    if (STAFF_ROLE_ID) {
+      staffRole = await guild.roles.fetch(STAFF_ROLE_ID);
+
+      if (!staffRole) {
+        console.warn(
+          'AVISO: cargo da equipe não encontrado. O ticket será criado sem essa permissão.'
+        );
+      }
+    }
+
+    const permissionOverwrites = [
+      {
+        id: guild.id,
+        deny: [PermissionFlagsBits.ViewChannel],
+      },
+      {
+        id: interaction.user.id,
+        allow: [
+          PermissionFlagsBits.ViewChannel,
+          PermissionFlagsBits.SendMessages,
+          PermissionFlagsBits.ReadMessageHistory,
+        ],
+      },
+      {
+        id: client.user.id,
+        allow: [
+          PermissionFlagsBits.ViewChannel,
+          PermissionFlagsBits.SendMessages,
+          PermissionFlagsBits.ReadMessageHistory,
+          PermissionFlagsBits.ManageChannels,
+        ],
+      },
+    ];
+
+    // Adiciona a equipe somente se o cargo existir
+    if (staffRole) {
+      permissionOverwrites.push({
+        id: staffRole.id,
+        allow: [
+          PermissionFlagsBits.ViewChannel,
+          PermissionFlagsBits.SendMessages,
+          PermissionFlagsBits.ReadMessageHistory,
+        ],
+      });
+    }
+
     const channel = await guild.channels.create({
       name: `${safeChannelPart(ticketType.label)}-${safeChannelPart(interaction.user.username)}`.slice(0, 90),
       type: ChannelType.GuildText,
-      parent: TICKET_CATEGORY_ID || undefined,
-
-      permissionOverwrites: [
-        {
-          id: guild.id,
-          deny: [PermissionFlagsBits.ViewChannel],
-        },
-        {
-          id: interaction.user.id,
-          allow: [
-            PermissionFlagsBits.ViewChannel,
-            PermissionFlagsBits.SendMessages,
-            PermissionFlagsBits.ReadMessageHistory,
-          ],
-        },
-        {
-          id: STAFF_ROLE_ID,
-          allow: [
-            PermissionFlagsBits.ViewChannel,
-            PermissionFlagsBits.SendMessages,
-            PermissionFlagsBits.ReadMessageHistory,
-          ],
-        },
-        {
-          id: client.user.id,
-          allow: [
-            PermissionFlagsBits.ViewChannel,
-            PermissionFlagsBits.SendMessages,
-            PermissionFlagsBits.ReadMessageHistory,
-            PermissionFlagsBits.ManageChannels,
-          ],
-        },
-      ],
+      parent: category ? category.id : undefined,
+      permissionOverwrites,
+      reason: `Ticket aberto por ${interaction.user.tag}`,
     });
 
     await channel.send({
@@ -317,11 +366,21 @@ async function createTicket(interaction, ticketType) {
       content: `✅ Seu atendimento foi criado: ${channel}`,
     });
 
+    console.log(
+      `Ticket criado: ${channel.name} | Usuário: ${interaction.user.tag}`
+    );
+
   } catch (error) {
-    console.error('Erro ao criar ticket:', error);
+    console.error('ERRO AO CRIAR TICKET:', {
+      message: error.message,
+      code: error.code,
+      details: error.rawError || null,
+    });
 
     await interaction.editReply({
-      content: '❌ Não foi possível criar seu atendimento. Avise a equipe.',
+      content:
+        '❌ Não foi possível criar seu atendimento. ' +
+        'Verifique as permissões e a categoria do ticket com a equipe.',
     }).catch(() => {});
   }
 }
